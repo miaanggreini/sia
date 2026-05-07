@@ -18,7 +18,7 @@
 <div class="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
   <div>
     <h1 class="text-3xl font-bold tracking-tight text-slate-900">
-      halooo Admin
+      Dashboard Admin
     </h1>
     <p class="mt-1 text-sm text-slate-500">
       Selamat datang, {{ auth()->user()->name ?? 'Admin' }}. Berikut ringkasan data akademik sekolah.

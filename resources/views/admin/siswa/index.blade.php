@@ -135,7 +135,6 @@
         </div>
     @endif
 </td>
-
                             <td class="whitespace-nowrap px-5 py-4 text-gray-600">
                                 {{ $row->nis ?? '—' }}
                             </td>
