@@ -126,12 +126,38 @@ class Siswa extends Model
     /**
      * Accessor URL foto siswa
      */
-    public function getFotoUrlAttribute(): string
-    {
-        if ($this->foto && Storage::disk('public')->exists($this->foto)) {
-            return asset('storage/' . $this->foto);
-        }
-
+/**
+ * Accessor URL foto siswa
+ */
+public function getFotoUrlAttribute(): string
+{
+    if (empty($this->foto)) {
         return asset('images/no-photo.png');
     }
+
+    $foto = ltrim($this->foto, '/');
+
+    // Jika sudah berupa URL penuh
+    if (str_starts_with($foto, 'http://') || str_starts_with($foto, 'https://')) {
+        return $foto;
+    }
+
+    // Jika database terlanjur menyimpan "storage/..."
+    if (str_starts_with($foto, 'storage/')) {
+        return asset($foto);
+    }
+
+    // Jika database terlanjur menyimpan "public/..."
+    if (str_starts_with($foto, 'public/')) {
+        $foto = substr($foto, strlen('public/'));
+    }
+
+    // Jika database terlanjur menyimpan "storage/app/public/..."
+    if (str_starts_with($foto, 'storage/app/public/')) {
+        $foto = substr($foto, strlen('storage/app/public/'));
+    }
+
+    // Format normal database: foto_siswa/nama-file.jpg
+    return asset('storage/' . $foto);
+}
 }
