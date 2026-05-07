@@ -95,12 +95,46 @@
                                 {{ $items->firstItem() + $loop->index }}
                             </td>
 
-                            <td class="whitespace-nowrap px-5 py-4 text-center">
-                                <img src="{{ $row->foto_url }}"
-                                     alt="Foto {{ $row->nama }}"
-                                     class="mx-auto h-14 w-14 rounded-xl border border-gray-200 object-cover shadow-sm"
-                                     onerror="this.onerror=null;this.src='{{ asset('images/no-photo.png') }}';">
-                            </td>
+<td class="whitespace-nowrap px-5 py-4 text-center">
+    @php
+        $foto = $row->foto ?? null;
+
+        if ($foto) {
+            $foto = ltrim($foto, '/');
+
+            if (str_starts_with($foto, 'storage/app/public/')) {
+                $foto = substr($foto, strlen('storage/app/public/'));
+            }
+
+            if (str_starts_with($foto, 'public/')) {
+                $foto = substr($foto, strlen('public/'));
+            }
+
+            if (str_starts_with($foto, 'storage/')) {
+                $fotoUrl = asset($foto);
+            } else {
+                $fotoUrl = asset('storage/' . $foto);
+            }
+        } else {
+            $fotoUrl = null;
+        }
+    @endphp
+
+    @if($fotoUrl)
+        <img src="{{ $fotoUrl }}"
+             alt="Foto {{ $row->nama }}"
+             class="mx-auto h-14 w-14 rounded-xl border border-gray-200 object-cover shadow-sm"
+             onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.classList.remove('hidden');">
+
+        <div class="hidden mx-auto h-14 w-14 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 text-[10px] font-semibold text-gray-400">
+            No Foto
+        </div>
+    @else
+        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-gray-200 bg-gray-100 text-[10px] font-semibold text-gray-400">
+            No Foto
+        </div>
+    @endif
+</td>
 
                             <td class="whitespace-nowrap px-5 py-4 text-gray-600">
                                 {{ $row->nis ?? '—' }}
