@@ -382,23 +382,27 @@ foreach ($rombel->siswa as $siswa) {
         ]);
     }
 
-    private function siswaRombelSesuaiMapel(Rombel $rombel, MataPelajaran $mapel, bool $isTahunAjaranAktif)
-    {
-        $query = $rombel->siswa()
-            ->wherePivot('tahun_ajaran_id', $rombel->tahun_ajaran_id)
-            ->when($isTahunAjaranAktif, function ($q) {
-                $q->wherePivot('aktif', 1);
-            })
-            ->orderBy('nama');
+private function siswaRombelSesuaiMapel(Rombel $rombel, MataPelajaran $mapel, bool $isTahunAjaranAktif)
+{
+    $query = \App\Models\Siswa::query()
+        ->select('siswa.*')
+        ->join('siswa_rombel as sr', 'sr.siswa_id', '=', 'siswa.id')
+        ->where('sr.rombel_id', $rombel->id)
+        ->where('sr.tahun_ajaran_id', $rombel->tahun_ajaran_id)
+        ->when($isTahunAjaranAktif, function ($q) {
+            $q->where('sr.aktif', 1);
+        })
+        ->where('siswa.status', 'aktif')
+        ->orderBy('siswa.nama');
 
-        if ($this->isMapelAgama($mapel->nama_mapel)) {
-            $agama = $this->agamaDariMapel($mapel->nama_mapel);
+    if ($this->isMapelAgama($mapel->nama_mapel)) {
+        $agama = $this->agamaDariMapel($mapel->nama_mapel);
 
-            $query->whereRaw('LOWER(siswa.agama) = ?', [strtolower($agama)]);
-        }
-
-        return $query->get();
+        $query->whereRaw('LOWER(siswa.agama) = ?', [strtolower($agama)]);
     }
+
+    return $query->get();
+}
 
     private function isMapelAgama(?string $namaMapel): bool
     {
