@@ -71,8 +71,6 @@ public function store(Request $request)
         ->with('ok', 'Data siswa berhasil ditambahkan.');
 }
 
-
-
     /**
      * FORM EDIT
      */

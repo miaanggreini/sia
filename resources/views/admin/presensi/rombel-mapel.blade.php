@@ -108,8 +108,8 @@
                 <span class="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 font-semibold text-rose-700 border border-rose-100">
                     A = Alfa
                 </span>
-                <span class="inline-flex items-center rounded-full bg-rose-50 px-3 py-1 font-semibold text-rose-600 border border-rose-100">
-                    Kolom merah muda = Sabtu/Minggu
+                <span class="inline-flex items-center rounded-full bg-sky-50 px-3 py-1 font-semibold text-sky-700 border border-sky-100">
+                    Kolom biru muda = Sabtu/Minggu
                 </span>
             </div>
         </div>
@@ -135,7 +135,7 @@
                         <th title="{{ $d->translatedFormat('l, d F Y') }}{{ $libur ? ' - Sabtu/Minggu' : '' }}"
                             class="px-1 py-2 text-center min-w-[30px] border-l
                                    {{ $libur
-                                        ? 'bg-rose-100 text-rose-600 border-rose-200'
+                                        ? 'bg-sky-100 text-sky-700 border-sky-200'
                                         : 'bg-indigo-600 text-white border-indigo-500/30' }}">
                             {{ $d->day }}
                         </th>
@@ -201,7 +201,7 @@
 
                             <td title="{{ $d->translatedFormat('l, d F Y') }}{{ $libur ? ' - Sabtu/Minggu' : '' }}"
                                 class="px-1 py-1.5 text-center font-semibold border-l border-gray-100
-                                       {{ $libur ? 'bg-rose-50' : 'bg-white' }}">
+                                       {{ $libur ? 'bg-sky-50' : 'bg-white' }}">
                                 @if($kode === 'H')
                                     <span class="text-emerald-700">{{ $kode }}</span>
                                 @elseif($kode === 'I')
@@ -211,7 +211,7 @@
                                 @elseif($kode === 'A')
                                     <span class="text-rose-700">{{ $kode }}</span>
                                 @else
-                                    <span class="{{ $libur ? 'text-rose-200' : 'text-gray-300' }}">•</span>
+                                    <span class="{{ $libur ? 'text-sky-300' : 'text-gray-300' }}">•</span>
                                 @endif
                             </td>
                         @endforeach
