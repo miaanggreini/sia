@@ -69,11 +69,6 @@
           </div>
         </div>
 
-        <div class="rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 text-sm text-indigo-700">
-          <span class="font-semibold">Tips:</span>
-          untuk tes cepat, set jam mulai ≤ sekarang dan jam selesai beberapa menit ke depan.
-        </div>
-
         <button class="px-6 py-3 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700">
           Mulai Absen
         </button>
