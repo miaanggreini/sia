@@ -79,6 +79,7 @@ class SiswaController extends Controller
                     'tanggal_lahir' => optional($s->tanggal_lahir)->format('Y-m-d'),
                     'tahun_masuk' => $s->tahun_masuk,
                     'foto' => $s->foto,
+                    'foto_url' => $this->resolveFotoUrl($s->foto, 'foto_siswa'),
                 ];
             })->values(),
         ]);
@@ -262,6 +263,7 @@ class SiswaController extends Controller
             'jenis_kelamin' => $siswa->jenis_kelamin,
             'agama' => $siswa->agama,
             'foto' => $siswa->foto,
+            'foto_url' => $this->resolveFotoUrl($siswa->foto, 'foto_siswa'),
             'alamat' => $siswa->alamat,
             'email' => $siswa->email,
             'no_hp' => $siswa->no_hp,
@@ -330,5 +332,47 @@ class SiswaController extends Controller
                 'status' => $rombel->tahunAjaran->status,
             ] : null,
         ];
+    }
+
+    private function resolveFotoUrl(?string $foto, string $defaultFolder = 'foto_siswa'): ?string
+    {
+        if (empty($foto)) {
+            return null;
+        }
+
+        $rawFoto = trim((string) $foto);
+
+        if ($rawFoto === '') {
+            return null;
+        }
+
+        if (preg_match('/^https?:\/\//i', $rawFoto)) {
+            return $rawFoto;
+        }
+
+        $rawFoto = str_replace('\\', '/', $rawFoto);
+        $rawFoto = preg_replace('#/+#', '/', $rawFoto);
+        $rawFoto = ltrim($rawFoto, '/');
+
+        $basename = basename($rawFoto);
+
+        $candidates = [
+            $rawFoto,
+            $defaultFolder . '/' . $basename,
+            'storage/' . $rawFoto,
+            'storage/' . $defaultFolder . '/' . $basename,
+            'sia/' . $rawFoto,
+            'sia/' . $defaultFolder . '/' . $basename,
+            'storage/sia/' . $rawFoto,
+            'storage/sia/' . $defaultFolder . '/' . $basename,
+        ];
+
+        foreach (array_unique(array_filter($candidates)) as $relativePath) {
+            if (is_file(public_path($relativePath))) {
+                return asset($relativePath);
+            }
+        }
+
+        return asset('storage/' . $rawFoto);
     }
 }

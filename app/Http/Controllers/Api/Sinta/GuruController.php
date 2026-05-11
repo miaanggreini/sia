@@ -90,7 +90,7 @@ class GuruController extends Controller
             'no_hp' => $g->no_hp,
             'alamat' => $g->alamat,
             'foto' => $g->foto,
-            'foto_url' => $this->resolveFotoUrl($g->foto),
+            'foto_url' => $this->resolveFotoUrl($g->foto, 'foto_guru'),
         ];
     }
 
@@ -111,17 +111,21 @@ class GuruController extends Controller
             'no_hp' => $g->no_hp,
             'alamat' => $g->alamat,
             'foto' => $g->foto,
-            'foto_url' => $this->resolveFotoUrl($g->foto),
+            'foto_url' => $this->resolveFotoUrl($g->foto, 'foto_guru'),
         ];
     }
 
-    private function resolveFotoUrl(?string $foto): ?string
+    private function resolveFotoUrl(?string $foto, string $defaultFolder = 'foto_guru'): ?string
     {
         if (empty($foto)) {
             return null;
         }
 
         $rawFoto = trim((string) $foto);
+
+        if ($rawFoto === '') {
+            return null;
+        }
 
         if (preg_match('/^https?:\/\//i', $rawFoto)) {
             return $rawFoto;
@@ -135,11 +139,13 @@ class GuruController extends Controller
 
         $candidates = [
             $rawFoto,
-            'foto_guru/' . $basename,
+            $defaultFolder . '/' . $basename,
+            'storage/' . $rawFoto,
+            'storage/' . $defaultFolder . '/' . $basename,
             'sia/' . $rawFoto,
-            'sia/foto_guru/' . $basename,
-            'storage/foto_guru/' . $basename,
-            'storage/sia/foto_guru/' . $basename,
+            'sia/' . $defaultFolder . '/' . $basename,
+            'storage/sia/' . $rawFoto,
+            'storage/sia/' . $defaultFolder . '/' . $basename,
         ];
 
         foreach (array_unique(array_filter($candidates)) as $relativePath) {
@@ -148,6 +154,6 @@ class GuruController extends Controller
             }
         }
 
-        return null;
+        return asset('storage/' . $rawFoto);
     }
 }
