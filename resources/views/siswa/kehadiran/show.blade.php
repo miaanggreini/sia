@@ -110,7 +110,7 @@
 
             <tr class="hover:bg-gray-50">
               <td class="px-4 py-3">Pertemuan {{ $i + 1 }}</td>
-              <td class="px-4 py-3">{{ $r->tanggal }}</td>              
+              <td class="px-4 py-3">{{ $r->mulai_pada ? \Carbon\Carbon::parse($r->mulai_pada)->timezone('Asia/Jakarta')->translatedFormat('d M Y • H:i') . ' WIB' : '-' }}</td>              
               <td class="px-4 py-3">
                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {{ $badge }}">
                   {{ strtoupper($status) }}
