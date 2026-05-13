@@ -236,7 +236,7 @@ class PreferensiMenuController extends Controller
         );
 
         return redirect()
-    ->route('siswa.menu.index')
+->route('siswa.menu.index')
     ->with('ok', 'Pilihan menu rombel berhasil disimpan.');
     }
 
