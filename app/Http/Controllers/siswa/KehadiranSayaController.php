@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Siswa;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class KehadiranSayaController extends Controller
 {
@@ -244,24 +245,32 @@ public function show(Request $request, $rombelId, $mapelId)
     abort_unless($anggota, 403, 'Anda bukan anggota rombel ini.');
 
     $rows = DB::table('sesi_presensi as sp')
-        ->leftJoin('presensi as ps', function ($join) use ($siswa) {
-            $join->on('ps.sesi_presensi_id', '=', 'sp.id')
-                ->where('ps.siswa_id', '=', $siswa->id);
-        })
-        ->where('sp.rombel_id', $rombelId)
-        ->where('sp.mata_pelajaran_id', $mapelId)
-        ->orderBy('sp.mulai_pada')
-        ->get([
-            'sp.id as sesi_id',
-            'sp.mulai_pada',
-            'ps.status',
-            'ps.dipindai_pada',
-        ])
-        ->map(function ($row) {
-            // Jika belum ada record presensi, otomatis dianggap alfa
-            $row->status = $row->status ?: 'alfa';
-            return $row;
-        });
+    ->leftJoin('presensi as ps', function ($join) use ($siswa) {
+        $join->on('ps.sesi_presensi_id', '=', 'sp.id')
+            ->where('ps.siswa_id', '=', $siswa->id);
+    })
+    ->where('sp.rombel_id', $rombelId)
+    ->where('sp.mata_pelajaran_id', $mapelId)
+    ->orderBy('sp.mulai_pada')
+    ->get([
+        'sp.id as sesi_id',
+        'sp.mulai_pada',
+        'ps.status',
+        'ps.dipindai_pada',
+    ])
+    ->map(function ($row) {
+        $row->status = $row->status ?: 'alfa';
+
+        $row->tanggal = $row->mulai_pada
+            ? Carbon::parse($row->mulai_pada)->timezone('Asia/Jakarta')->translatedFormat('d M Y • H:i') . ' WIB'
+            : '-';
+
+        $row->waktu_scan = $row->dipindai_pada
+            ? Carbon::parse($row->dipindai_pada)->timezone('Asia/Jakarta')->translatedFormat('d M Y • H:i') . ' WIB'
+            : '-';
+
+        return $row;
+    });
 
     $total = $rows->count();
 
