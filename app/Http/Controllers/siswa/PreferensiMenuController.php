@@ -236,8 +236,8 @@ class PreferensiMenuController extends Controller
         );
 
         return redirect()
-            ->route('siswa.pilih-menu.index')
-            ->with('ok', 'Pilihan menu rombel berhasil disimpan.');
+    ->route('siswa.menu.index')
+    ->with('ok', 'Pilihan menu rombel berhasil disimpan.');
     }
 
     private function rombelKelasXSudahDiprosesNaik(int $siswaId, ?int $tahunAjaranTujuanId = null)
