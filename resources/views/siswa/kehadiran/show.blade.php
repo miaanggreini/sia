@@ -110,7 +110,7 @@
 
             <tr class="hover:bg-gray-50">
               <td class="px-4 py-3">Pertemuan {{ $i + 1 }}</td>
-              <td class="px-4 py-3">{{ $tgl->translatedFormat('d M Y • H:i') }} WIB</td>
+              <td class="px-4 py-3">{{tanggal->translatedFormat('d M Y • H:i') }} WIB</td>
               <td class="px-4 py-3">
                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium {{ $badge }}">
                   {{ strtoupper($status) }}
@@ -119,7 +119,7 @@
             </tr>
           @empty
             <tr>
-              <td colspan="4" class="px-4 py-6 text-center text-gray-500">
+              <td colspan="3" class="px-4 py-6 text-center text-gray-500">
                 Belum ada pertemuan yang tercatat.
               </td>
             </tr>
