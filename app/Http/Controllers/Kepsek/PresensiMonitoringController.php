@@ -489,23 +489,40 @@ class PresensiMonitoringController extends Controller
 
         return [$bulan, $start, $end, $days];
     }
+private function siswaRombelSesuaiMapel(Rombel $rombel, MataPelajaran $mapel, ?int $tahunAjaranId = null)
+{
+    $query = DB::table('siswa as s')
+        ->join('siswa_rombel as sr', 'sr.siswa_id', '=', 's.id')
+        ->where('sr.rombel_id', $rombel->id)
+        ->where('sr.aktif', 1);
 
-    private function siswaRombelSesuaiMapel(Rombel $rombel, MataPelajaran $mapel, ?int $tahunAjaranId = null)
-    {
-        $query = $rombel->siswa()
-            ->when($tahunAjaranId, function ($q) use ($tahunAjaranId) {
-                $q->wherePivot('tahun_ajaran_id', $tahunAjaranId);
-            })
-            ->orderBy('nama');
-
-        if ($this->isMapelAgama($mapel->nama_mapel)) {
-            $agama = $this->agamaDariMapel($mapel->nama_mapel);
-
-            $query->whereRaw('LOWER(siswa.agama) = ?', [strtolower($agama)]);
-        }
-
-        return $query->get();
+    if ($tahunAjaranId) {
+        $query->where('sr.tahun_ajaran_id', $tahunAjaranId);
+    } elseif ($rombel->tahun_ajaran_id) {
+        $query->where('sr.tahun_ajaran_id', $rombel->tahun_ajaran_id);
     }
+
+    if ($this->isMapelAgama($mapel->nama_mapel)) {
+        $agama = $this->agamaDariMapel($mapel->nama_mapel);
+
+        $query->whereRaw('LOWER(s.agama) = ?', [strtolower($agama)]);
+    }
+
+    return $query
+        ->select(
+            's.id',
+            's.nama',
+            's.nis',
+            's.nisn',
+            's.agama',
+            's.status',
+            'sr.rombel_id',
+            'sr.tahun_ajaran_id',
+            'sr.aktif'
+        )
+        ->orderBy('s.nama')
+        ->get();
+}
 
     private function getTahunAjaranAktif()
     {
