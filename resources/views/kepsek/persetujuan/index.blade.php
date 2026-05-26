@@ -16,8 +16,23 @@
         }
     };
 
+    $formatTanggalJam = function ($value) {
+        if (empty($value)) {
+            return '-';
+        }
+
+        try {
+            return \Illuminate\Support\Carbon::parse($value)
+                ->timezone('Asia/Jakarta')
+                ->translatedFormat('d M Y H:i');
+        } catch (\Exception $e) {
+            return '-';
+        }
+    };
+
     $jadwalPublikasi = function ($item) use ($formatTanggal) {
         $mulai = $formatTanggal($item->tanggal_mulai ?? null);
+
         $selesai = !empty($item->tanggal_selesai)
             ? $formatTanggal($item->tanggal_selesai)
             : 'Tanpa batas akhir';
@@ -39,6 +54,7 @@
 
         $today = now('Asia/Jakarta')->startOfDay();
         $tanggalMulai = \Illuminate\Support\Carbon::parse($item->tanggal_mulai)->startOfDay();
+
         $tanggalSelesai = !empty($item->tanggal_selesai)
             ? \Illuminate\Support\Carbon::parse($item->tanggal_selesai)->endOfDay()
             : null;
@@ -78,13 +94,18 @@
             </div>
 
             <form method="GET" class="flex items-center gap-2">
-                <input type="text"
-                       name="q"
-                       value="{{ $q }}"
-                       placeholder="Cari judul..."
-                       class="w-64 rounded-xl border px-4 py-2.5 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <input
+                    type="text"
+                    name="q"
+                    value="{{ $q ?? request('q') }}"
+                    placeholder="Cari judul..."
+                    class="w-64 rounded-xl border px-4 py-2.5 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                >
 
-                <button class="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium hover:bg-gray-200">
+                <button
+                    type="submit"
+                    class="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium hover:bg-gray-200"
+                >
                     Cari
                 </button>
             </form>
@@ -123,8 +144,8 @@
             rejectJadwal: '',
             reason: '',
 
-            openApproveModal(form, title, jadwal) {
-                this.approveForm = form;
+            openApproveModal(formId, title, jadwal) {
+                this.approveForm = document.getElementById(formId);
                 this.approveTitle = title || 'Pengumuman';
                 this.approveJadwal = jadwal || '-';
                 this.approveOpen = true;
@@ -142,8 +163,8 @@
                 this.approveForm.submit();
             },
 
-            openRejectModal(form, title, jadwal) {
-                this.rejectForm = form;
+            openRejectModal(formId, title, jadwal) {
+                this.rejectForm = document.getElementById(formId);
                 this.rejectTitle = title || 'Pengumuman';
                 this.rejectJadwal = jadwal || '-';
                 this.reason = '';
@@ -192,16 +213,23 @@
                             <th class="px-5 py-3 text-left font-semibold">Jadwal Publikasi</th>
                             <th class="px-5 py-3 text-left font-semibold">Status</th>
                             <th class="px-5 py-3 text-left font-semibold">Diajukan</th>
-                            <th class="px-5 py-3 text-left font-semibold">Aksi</th>
+                            <th class="w-[300px] px-6 py-3 text-left font-semibold">Aksi</th>
                         </tr>
                     </thead>
 
                     <tbody class="divide-y divide-gray-100">
                         @forelse($pendingItems as $p)
+                            @php
+                                $judul = $p->judul ?? $p->title ?? 'Pengumuman';
+                                $jadwal = $jadwalPublikasi($p);
+                                $approveFormId = 'approve-form-' . $p->id;
+                                $rejectFormId = 'reject-form-' . $p->id;
+                            @endphp
+
                             <tr class="hover:bg-gray-50">
                                 <td class="px-5 py-4 align-top">
                                     <div class="text-base font-semibold text-gray-900">
-                                        {{ $p->judul ?? $p->title }}
+                                        {{ $judul }}
                                     </div>
 
                                     @if(!empty($p->isi))
@@ -213,7 +241,10 @@
 
                                 <td class="px-5 py-4 align-top">
                                     <div class="font-semibold text-gray-800">
-                                        {{ $jadwalPublikasi($p) }}
+                                        {{ $jadwal }}
+                                    </div>
+                                    <div class="mt-1 text-xs text-gray-500">
+                                        Jadwal ini ikut diperiksa sebelum pengumuman disetujui.
                                     </div>
                                 </td>
 
@@ -224,29 +255,54 @@
                                 </td>
 
                                 <td class="whitespace-nowrap px-5 py-4 align-top text-gray-700">
-                                    {{ ($p->submitted_at ?? $p->created_at ?? now())->format('d M Y H:i') }}
+                                    {{ $formatTanggalJam($p->submitted_at ?? $p->created_at ?? null) }}
                                 </td>
 
-<td class="px-6 py-4 align-top whitespace-nowrap">
-    <div class="flex min-w-[260px] flex-nowrap items-center gap-2">
-        <a href="{{ route('kepala_sekolah.approvals.pengumuman.show', $p->id) }}"
-           class="inline-flex h-10 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
-            Detail
-        </a>
+                                <td class="px-6 py-4 align-top whitespace-nowrap">
+                                    <div class="flex min-w-[270px] flex-nowrap items-center gap-2">
+                                        <a
+                                            href="{{ route('kepala_sekolah.persetujuan.show', $p->id) }}"
+                                            class="inline-flex h-10 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                                        >
+                                            Detail
+                                        </a>
 
-        <button type="button"
-                @click="openApproveModal({{ $p->id }}, @js($p->judul))"
-                class="inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700">
-            Approve
-        </button>
+                                        <button
+                                            type="button"
+                                            @click="openApproveModal('{{ $approveFormId }}', @js($judul), @js($jadwal))"
+                                            class="inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                                        >
+                                            Approve
+                                        </button>
 
-        <button type="button"
-                @click="openRejectModal({{ $p->id }}, @js($p->judul))"
-                class="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700">
-            Reject
-        </button>
-    </div>
-</td>
+                                        <button
+                                            type="button"
+                                            @click="openRejectModal('{{ $rejectFormId }}', @js($judul), @js($jadwal))"
+                                            class="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700"
+                                        >
+                                            Reject
+                                        </button>
+                                    </div>
+
+                                    <form
+                                        id="{{ $approveFormId }}"
+                                        method="POST"
+                                        action="{{ route('kepala_sekolah.approvals.pengumuman.approve', $p->id) }}"
+                                        class="hidden"
+                                    >
+                                        @csrf
+                                    </form>
+
+                                    <form
+                                        id="{{ $rejectFormId }}"
+                                        method="POST"
+                                        action="{{ route('kepala_sekolah.approvals.pengumuman.reject', $p->id) }}"
+                                        class="hidden"
+                                    >
+                                        @csrf
+                                        <input type="hidden" name="reason" value="">
+                                    </form>
+                                </td>
                             </tr>
                         @empty
                             <tr>
@@ -284,8 +340,8 @@
                             <th class="px-5 py-3 text-left font-semibold">Status</th>
                             <th class="px-5 py-3 text-left font-semibold">Diproses</th>
                             <th class="px-5 py-3 text-left font-semibold">Catatan</th>
-                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700 w-[280px]">Aksi</th>                        
-                            </tr>
+                            <th class="w-[130px] px-5 py-3 text-left font-semibold">Aksi</th>
+                        </tr>
                     </thead>
 
                     <tbody class="divide-y divide-gray-100">
@@ -293,12 +349,13 @@
                             @php
                                 $st = strtolower($p->status ?? '');
                                 $publikasi = $statusPublikasi($p);
+                                $judul = $p->judul ?? $p->title ?? 'Pengumuman';
                             @endphp
 
                             <tr class="hover:bg-gray-50">
                                 <td class="px-5 py-4 align-top">
                                     <div class="text-base font-semibold text-gray-900">
-                                        {{ $p->judul ?? $p->title }}
+                                        {{ $judul }}
                                     </div>
 
                                     @if(!empty($p->isi))
@@ -339,16 +396,18 @@
                                 </td>
 
                                 <td class="whitespace-nowrap px-5 py-4 align-top text-gray-700">
-                                    {{ ($p->updated_at ?? $p->approved_at ?? $p->created_at ?? now())->format('d M Y H:i') }}
+                                    {{ $formatTanggalJam($p->updated_at ?? $p->approved_at ?? $p->created_at ?? null) }}
                                 </td>
 
                                 <td class="px-5 py-4 align-top text-gray-600">
                                     {{ $p->alasan_tolak ?? '-' }}
                                 </td>
 
-                                <td class="px-5 py-4 align-top">
-                                    <a href="{{ route('kepala_sekolah.persetujuan.show', $p) }}"
-                                       class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                <td class="px-5 py-4 align-top whitespace-nowrap">
+                                    <a
+                                        href="{{ route('kepala_sekolah.persetujuan.show', $p->id) }}"
+                                        class="inline-flex h-10 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                                    >
                                         Detail
                                     </a>
                                 </td>
@@ -405,10 +464,12 @@
                         </div>
                     </div>
 
-                    <button type="button"
-                            class="ml-auto text-gray-400 hover:text-gray-600"
-                            @click="closeApproveModal()"
-                            aria-label="Tutup">
+                    <button
+                        type="button"
+                        class="ml-auto text-gray-400 hover:text-gray-600"
+                        @click="closeApproveModal()"
+                        aria-label="Tutup"
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg"
                              class="h-5 w-5"
                              viewBox="0 0 24 24"
@@ -490,10 +551,12 @@
                         <div class="mt-0.5 truncate text-xs text-gray-500" x-text="rejectTitle"></div>
                     </div>
 
-                    <button type="button"
-                            class="ml-auto text-gray-400 hover:text-gray-600"
-                            @click="closeRejectModal()"
-                            aria-label="Tutup">
+                    <button
+                        type="button"
+                        class="ml-auto text-gray-400 hover:text-gray-600"
+                        @click="closeRejectModal()"
+                        aria-label="Tutup"
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg"
                              class="h-5 w-5"
                              viewBox="0 0 24 24"
