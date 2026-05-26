@@ -10,11 +10,13 @@
         'kegiatan' => 'Kegiatan',
     ];
 
+    $todayValue = now('Asia/Jakarta')->toDateString();
+
     $tanggalMulaiValue = old(
         'tanggal_mulai',
         !empty($item->tanggal_mulai)
             ? \Illuminate\Support\Carbon::parse($item->tanggal_mulai)->format('Y-m-d')
-            : now('Asia/Jakarta')->toDateString()
+            : $todayValue
     );
 
     $tanggalSelesaiValue = old(
@@ -83,7 +85,7 @@
                 Jadwal Publikasi
             </h3>
             <p class="mt-1 text-xs text-gray-500">
-                Tanggal mulai otomatis terisi hari ini, tetapi masih dapat diubah sesuai kebutuhan.
+                Tanggal mulai otomatis terisi hari ini. Tanggal sebelum hari ini tidak dapat dipilih.
             </p>
         </div>
 
@@ -100,6 +102,7 @@
                     type="date"
                     name="tanggal_mulai"
                     value="{{ $tanggalMulaiValue }}"
+                    min="{{ $todayValue }}"
                     required
                     class="block w-full rounded-xl border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 >
@@ -169,3 +172,34 @@
         </button>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tanggalMulai = document.getElementById('tanggal_mulai');
+        const tanggalSelesai = document.getElementById('tanggal_selesai');
+
+        if (!tanggalMulai || !tanggalSelesai) return;
+
+        const today = tanggalMulai.getAttribute('min');
+
+        tanggalMulai.addEventListener('change', function () {
+            if (tanggalMulai.value && tanggalMulai.value < today) {
+                tanggalMulai.value = today;
+            }
+
+            tanggalSelesai.min = tanggalMulai.value || today;
+
+            if (tanggalSelesai.value && tanggalSelesai.value < tanggalSelesai.min) {
+                tanggalSelesai.value = '';
+            }
+        });
+
+        tanggalSelesai.addEventListener('change', function () {
+            const minSelesai = tanggalMulai.value || today;
+
+            if (tanggalSelesai.value && tanggalSelesai.value < minSelesai) {
+                tanggalSelesai.value = '';
+            }
+        });
+    });
+</script>
