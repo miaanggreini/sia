@@ -3,21 +3,25 @@
 namespace App\Http\Controllers\Siswa;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Pengumuman;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class PengumumanController extends Controller
 {
     public function index(Request $request)
     {
         $q = trim((string) $request->input('q'));
-        $today = now()->toDateString();
+        $today = Carbon::now('Asia/Jakarta')->toDateString();
 
         $data = Pengumuman::query()
-            // Siswa hanya boleh melihat pengumuman yang sudah dipublikasikan admin
-            ->whereIn('status', ['publik', 'published'])
+            // Siswa hanya boleh melihat pengumuman yang sudah disetujui Kepala Sekolah
+            ->where('status', 'approved')
 
-            // Sudah mulai tayang
+            // Harus sudah memiliki tanggal mulai publikasi
+            ->whereNotNull('tanggal_mulai')
+
+            // Sudah masuk tanggal tayang
             ->whereDate('tanggal_mulai', '<=', $today)
 
             // Masih dalam masa tayang
@@ -26,16 +30,18 @@ class PengumumanController extends Controller
                     ->orWhereDate('tanggal_selesai', '>=', $today);
             })
 
+            // Pencarian judul atau isi
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($w) use ($q) {
                     $w->where('judul', 'like', "%{$q}%")
-                      ->orWhere('isi', 'like', "%{$q}%");
+                        ->orWhere('isi', 'like', "%{$q}%");
                 });
             })
 
-            // Urutkan dari yang paling baru dipublikasikan
-            ->orderByDesc('published_at')
+            // Urutkan dari jadwal publikasi terbaru
             ->orderByDesc('tanggal_mulai')
+            ->orderByDesc('approved_at')
+            ->orderByDesc('created_at')
             ->paginate(12)
             ->withQueryString();
 
@@ -44,15 +50,23 @@ class PengumumanController extends Controller
 
     public function show(Pengumuman $pengumuman)
     {
-        $today = now()->toDateString();
+        $today = Carbon::now('Asia/Jakarta')->toDateString();
+
+        $tanggalMulai = $pengumuman->tanggal_mulai
+            ? Carbon::parse($pengumuman->tanggal_mulai)->toDateString()
+            : null;
+
+        $tanggalSelesai = $pengumuman->tanggal_selesai
+            ? Carbon::parse($pengumuman->tanggal_selesai)->toDateString()
+            : null;
 
         $bolehDilihat =
-            in_array($pengumuman->status, ['publik', 'published'], true)
-            && $pengumuman->tanggal_mulai
-            && $pengumuman->tanggal_mulai->toDateString() <= $today
+            $pengumuman->status === 'approved'
+            && $tanggalMulai
+            && $tanggalMulai <= $today
             && (
-                !$pengumuman->tanggal_selesai
-                || $pengumuman->tanggal_selesai->toDateString() >= $today
+                !$tanggalSelesai
+                || $tanggalSelesai >= $today
             );
 
         abort_unless($bolehDilihat, 404);

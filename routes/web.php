@@ -166,6 +166,14 @@ Route::middleware(['auth', 'role:admin'])
             [AdminPengumumanController::class, 'submit'])
             ->name('pengumuman.submit');
 
+        Route::get('pengumuman/{pengumuman}/publish',
+            [AdminPengumumanController::class, 'publishForm'])
+            ->name('pengumuman.publish.form');
+
+        Route::post('pengumuman/{pengumuman}/publish',
+            [AdminPengumumanController::class, 'publishStore'])
+            ->name('pengumuman.publish.store');
+
         // =======================
         // PEMILIHAN ROMBEL
         // =======================

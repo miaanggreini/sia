@@ -1,3 +1,4 @@
+{{-- resources/views/admin/pengumuman/index.blade.php --}}
 @extends('layouts.admin')
 
 @section('title', 'Pengumuman')
@@ -7,7 +8,7 @@
     $statusLabel = function ($status) {
         return match ($status) {
             'draft'    => 'Draft',
-            'pending'  => 'Menunggu Approval',
+            'pending'  => 'Menunggu Persetujuan',
             'approved' => 'Disetujui',
             'rejected' => 'Ditolak',
             'publik'   => 'Dipublikasikan',
@@ -19,7 +20,7 @@
         return match ($status) {
             'draft'    => 'bg-gray-100 text-gray-700 border-gray-200',
             'pending'  => 'bg-amber-100 text-amber-700 border-amber-200',
-            'approved' => 'bg-blue-100 text-blue-700 border-blue-200',
+            'approved' => 'bg-emerald-100 text-emerald-700 border-emerald-200',
             'rejected' => 'bg-rose-100 text-rose-700 border-rose-200',
             'publik'   => 'bg-emerald-100 text-emerald-700 border-emerald-200',
             default    => 'bg-gray-100 text-gray-700 border-gray-200',
@@ -39,6 +40,52 @@
             default           => 'bg-gray-50 text-gray-700 border-gray-200',
         };
     };
+
+    $formatTanggal = function ($tanggal) {
+        if (empty($tanggal)) {
+            return '-';
+        }
+
+        return \Illuminate\Support\Carbon::parse($tanggal)->format('d M Y');
+    };
+
+    $statusPublikasi = function ($item) {
+        if ($item->status !== 'approved') {
+            return null;
+        }
+
+        if (empty($item->tanggal_mulai)) {
+            return [
+                'label' => 'Belum Ada Jadwal',
+                'class' => 'bg-gray-100 text-gray-700 border-gray-200',
+            ];
+        }
+
+        $today = now('Asia/Jakarta')->startOfDay();
+        $tanggalMulai = \Illuminate\Support\Carbon::parse($item->tanggal_mulai)->startOfDay();
+        $tanggalSelesai = !empty($item->tanggal_selesai)
+            ? \Illuminate\Support\Carbon::parse($item->tanggal_selesai)->endOfDay()
+            : null;
+
+        if ($tanggalMulai->gt($today)) {
+            return [
+                'label' => 'Terjadwal',
+                'class' => 'bg-blue-100 text-blue-700 border-blue-200',
+            ];
+        }
+
+        if ($tanggalSelesai && $tanggalSelesai->lt($today)) {
+            return [
+                'label' => 'Berakhir',
+                'class' => 'bg-gray-100 text-gray-700 border-gray-200',
+            ];
+        }
+
+        return [
+            'label' => 'Sedang Tampil',
+            'class' => 'bg-emerald-100 text-emerald-700 border-emerald-200',
+        ];
+    };
 @endphp
 
 <div class="space-y-5">
@@ -49,7 +96,7 @@
                 Pengumuman
             </h1>
             <p class="mt-1 text-sm text-gray-500">
-                Kelola pengumuman sekolah, ajukan ke Kepala Sekolah untuk persetujuan, dan pantau status publikasinya.
+                Kelola pengumuman sekolah, ajukan persetujuan ke Kepala Sekolah, dan tampilkan otomatis ke siswa sesuai jadwal publikasi.
             </p>
         </div>
 
@@ -82,27 +129,12 @@
                         Cari Pengumuman
                     </label>
 
-                    <div class="relative">
-                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                 class="h-5 w-5"
-                                 fill="none"
-                                 viewBox="0 0 24 24"
-                                 stroke="currentColor"
-                                 stroke-width="2">
-                                <path stroke-linecap="round"
-                                      stroke-linejoin="round"
-                                      d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
-                            </svg>
-                        </span>
-
-                        <input type="text"
-                               id="q"
-                               name="q"
-                               value="{{ $q }}"
-                               class="block w-full rounded-xl border-gray-300 pl-11 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                               placeholder="Cari berdasarkan judul atau isi pengumuman...">
-                    </div>
+                    <input type="text"
+                           id="q"
+                           name="q"
+                           value="{{ $q }}"
+                           class="block w-full rounded-xl border-gray-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                           placeholder="Cari berdasarkan judul atau isi pengumuman...">
                 </div>
 
                 <div class="lg:col-span-4">
@@ -152,16 +184,16 @@
         </span>
 
         <span class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
-            Menunggu approval:
+            Menunggu persetujuan:
             <span class="rounded-full bg-white px-2 py-0.5 text-blue-800">
                 {{ $menungguApprovalCount ?? 0 }}
             </span>
         </span>
 
         <span class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-            Terpublikasi:
+            Disetujui:
             <span class="rounded-full bg-white px-2 py-0.5 text-emerald-800">
-                {{ $terpublikasiCount ?? 0 }}
+                {{ $siapPublikasiCount ?? 0 }}
             </span>
         </span>
     </div>
@@ -184,11 +216,15 @@
                             Kategori
                         </th>
 
+                        <th class="w-56 px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Jadwal Publikasi
+                        </th>
+
                         <th class="w-48 px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             Status
                         </th>
 
-                        <th class="w-72 px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        <th class="w-56 px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             Aksi
                         </th>
                     </tr>
@@ -196,6 +232,10 @@
 
                 <tbody class="divide-y divide-gray-100 bg-white">
                     @forelse($items as $item)
+                        @php
+                            $publikasi = $statusPublikasi($item);
+                        @endphp
+
                         <tr class="transition hover:bg-gray-50">
                             <td class="px-5 py-4 text-gray-600">
                                 {{ $items->firstItem() + $loop->index }}
@@ -220,6 +260,26 @@
                             </td>
 
                             <td class="px-5 py-4">
+                                <div class="text-xs font-semibold text-gray-700">
+                                    {{ $formatTanggal($item->tanggal_mulai) }}
+                                    @if(!empty($item->tanggal_selesai))
+                                        <span class="text-gray-400">s.d.</span>
+                                        {{ $formatTanggal($item->tanggal_selesai) }}
+                                    @else
+                                        <span class="text-gray-400">s.d. tanpa batas</span>
+                                    @endif
+                                </div>
+
+                                @if($publikasi)
+                                    <div class="mt-1">
+                                        <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold {{ $publikasi['class'] }}">
+                                            {{ $publikasi['label'] }}
+                                        </span>
+                                    </div>
+                                @endif
+                            </td>
+
+                            <td class="px-5 py-4">
                                 <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold {{ $statusClass($item->status) }}">
                                     {{ $statusLabel($item->status) }}
                                 </span>
@@ -233,13 +293,14 @@
                                             Ubah
                                         </a>
 
-                                       <form method="POST"
+                                        <form method="POST"
                                               action="{{ route('admin.pengumuman.submit', $item) }}"
                                               class="inline form-ajukan-pengumuman">
                                             @csrf
                                             <button type="button"
                                                     class="btn-ajukan-pengumuman inline-flex items-center justify-center rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
                                                     data-title="{{ $item->judul }}"
+                                                    data-jadwal="{{ $formatTanggal($item->tanggal_mulai) }}{{ !empty($item->tanggal_selesai) ? ' s.d. '.$formatTanggal($item->tanggal_selesai) : ' s.d. tanpa batas' }}"
                                                     data-action="{{ $item->status === 'rejected' ? 'Ajukan Ulang' : 'Ajukan' }}">
                                                 {{ $item->status === 'rejected' ? 'Ajukan Ulang' : 'Ajukan' }}
                                             </button>
@@ -255,7 +316,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-5 py-12 text-center">
+                            <td colspan="6" class="px-5 py-12 text-center">
                                 <div class="mx-auto max-w-md">
                                     <div class="text-sm font-semibold text-gray-800">
                                         Belum ada pengumuman
@@ -308,7 +369,7 @@
                 </h3>
 
                 <p class="mt-2 text-sm leading-relaxed text-gray-600">
-                    Pengumuman ini akan diajukan ke Kepala Sekolah untuk proses approval.
+                    Pengumuman ini akan diajukan ke Kepala Sekolah untuk proses persetujuan. Kepala Sekolah akan meninjau isi pengumuman dan jadwal publikasinya.
                 </p>
 
                 <div class="mt-3 rounded-xl bg-gray-50 px-4 py-3">
@@ -316,6 +377,13 @@
                         Judul Pengumuman
                     </p>
                     <p id="modalAjukanTitle" class="mt-1 text-sm font-semibold text-gray-900">
+                        -
+                    </p>
+
+                    <p class="mt-3 text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Jadwal Publikasi
+                    </p>
+                    <p id="modalAjukanJadwal" class="mt-1 text-sm font-semibold text-gray-900">
                         -
                     </p>
                 </div>
@@ -342,6 +410,7 @@
     document.addEventListener('DOMContentLoaded', function () {
         const modal = document.getElementById('modalAjukanPengumuman');
         const modalTitle = document.getElementById('modalAjukanTitle');
+        const modalJadwal = document.getElementById('modalAjukanJadwal');
         const btnBatal = document.getElementById('btnBatalAjukan');
         const btnKonfirmasi = document.getElementById('btnKonfirmasiAjukan');
 
@@ -352,6 +421,7 @@
                 selectedForm = this.closest('form');
 
                 modalTitle.textContent = this.dataset.title || '-';
+                modalJadwal.textContent = this.dataset.jadwal || '-';
                 btnKonfirmasi.textContent = this.dataset.action || 'Ajukan';
 
                 modal.classList.remove('hidden');

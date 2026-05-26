@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Siswa;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Pengumuman;
 use App\Models\Jadwal;
+use App\Models\Pengumuman;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -15,36 +15,61 @@ class DashboardController extends Controller
         $siswa = optional($request->user()->siswa);
         abort_unless($siswa, 403);
 
+        $now = Carbon::now('Asia/Jakarta');
+        $today = $now->toDateString();
+
         // Samakan kapitalisasi hari dengan data jadwal: Senin, Selasa, dst.
-        $hari = Carbon::now()->locale('id')->isoFormat('dddd');
+        $hari = $now->copy()->locale('id')->isoFormat('dddd');
         $hari = ucfirst(strtolower($hari));
 
         // Jadwal hari ini berdasarkan rombel aktif siswa
         $jadwalHariIni = Jadwal::with(['mataPelajaran', 'guru', 'rombel'])
             ->whereHas('rombel.siswa', function ($q) use ($siswa) {
                 $q->where('siswa.id', $siswa->id)
-                  ->where('siswa_rombel.aktif', 1);
+                    ->where('siswa_rombel.aktif', 1);
             })
             ->where('hari', $hari)
             ->orderBy('jam_mulai')
             ->get();
 
-        // Pengumuman dashboard: 1 bulan terakhir, urut dari yang terbaru dipublikasikan
+        /*
+         * Pengumuman dashboard:
+         * - hanya yang sudah disetujui kepala sekolah
+         * - sudah masuk jadwal publikasi
+         * - belum melewati tanggal selesai
+         * - hanya pengumuman dengan tanggal mulai pada bulan berjalan
+         */
         $pengumuman = Pengumuman::query()
-            ->whereIn('status', ['approved', 'publik', 'published'])
-            ->whereRaw('COALESCE(published_at, approved_at, updated_at, created_at) >= ?', [
-                now()->subMonth(),
-            ])
-            ->orderByRaw('COALESCE(published_at, approved_at, updated_at, created_at) DESC')
+            ->where('status', 'approved')
+            ->whereNotNull('tanggal_mulai')
+            ->whereDate('tanggal_mulai', '<=', $today)
+            ->where(function ($query) use ($today) {
+                $query->whereNull('tanggal_selesai')
+                    ->orWhereDate('tanggal_selesai', '>=', $today);
+            })
+            ->whereYear('tanggal_mulai', $now->year)
+            ->whereMonth('tanggal_mulai', $now->month)
+            ->orderByDesc('tanggal_mulai')
+            ->orderByDesc('approved_at')
+            ->orderByDesc('created_at')
             ->limit(5)
             ->get();
 
-        // Popup: hanya pengumuman terbaru yang dipublikasikan hari ini
+        /*
+         * Popup:
+         * Karena alur baru tidak memakai published_at lagi,
+         * popup diambil dari pengumuman approved yang mulai tayang hari ini.
+         */
         $pengumumanBaru = Pengumuman::query()
-            ->whereIn('status', ['approved', 'publik', 'published'])
-            ->whereNotNull('published_at')
-            ->whereDate('published_at', Carbon::today())
-            ->latest('published_at')
+            ->where('status', 'approved')
+            ->whereNotNull('tanggal_mulai')
+            ->whereDate('tanggal_mulai', $today)
+            ->where(function ($query) use ($today) {
+                $query->whereNull('tanggal_selesai')
+                    ->orWhereDate('tanggal_selesai', '>=', $today);
+            })
+            ->orderByDesc('approved_at')
+            ->orderByDesc('created_at')
             ->first();
 
         // Supaya popup tidak muncul terus saat refresh / balik dashboard
