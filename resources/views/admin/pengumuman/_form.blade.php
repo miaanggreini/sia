@@ -71,10 +71,6 @@
         <div class="mb-3">
             <h3 class="text-sm font-bold text-gray-800">
                 Jadwal Publikasi
-            </h3>
-            <p class="mt-1 text-xs leading-relaxed text-gray-600">
-                Tanggal publikasi diisi sejak pengumuman dibuat agar Kepala Sekolah dapat meninjau isi pengumuman sekaligus jadwal tampilnya. Jika disetujui, pengumuman akan otomatis tampil ke siswa sesuai tanggal publikasi.
-            </p>
         </div>
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
