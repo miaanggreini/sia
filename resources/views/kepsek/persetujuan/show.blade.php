@@ -279,15 +279,6 @@
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-gray-200 bg-white px-4 py-3">
-                    <div class="text-xs font-medium uppercase text-gray-400">
-                        Terakhir Diperbarui
-                    </div>
-
-                    <div class="mt-1 text-sm font-semibold text-gray-800">
-                        {{ $formatTanggalWaktu($item->updated_at ?? null) }}
-                    </div>
-                </div>
             </div>
 
             @if($status === 'pending')

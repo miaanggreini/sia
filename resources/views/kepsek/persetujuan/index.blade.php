@@ -215,9 +215,6 @@
                                     <div class="font-semibold text-gray-800">
                                         {{ $jadwalPublikasi($p) }}
                                     </div>
-                                    <div class="mt-1 text-xs text-gray-500">
-                                        Jadwal ini ikut diperiksa sebelum pengumuman disetujui.
-                                    </div>
                                 </td>
 
                                 <td class="px-5 py-4 align-top">
@@ -230,37 +227,26 @@
                                     {{ ($p->submitted_at ?? $p->created_at ?? now())->format('d M Y H:i') }}
                                 </td>
 
-                                <td class="px-5 py-4 align-top">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <a href="{{ route('kepala_sekolah.persetujuan.show', $p) }}"
-                                           class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                                            Detail
-                                        </a>
+<td class="px-6 py-4 align-top whitespace-nowrap">
+    <div class="flex min-w-[250px] flex-nowrap items-center gap-2">
+        <a href="{{ route('kepsek.persetujuan.show', $p->id) }}"
+           class="inline-flex h-10 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+            Detail
+        </a>
 
-                                        <form method="POST"
-                                              action="{{ route('kepala_sekolah.approvals.pengumuman.approve', $p) }}">
-                                            @csrf
-                                            <button type="button"
-                                                    class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-                                                    @click="openApproveModal($el.closest('form'), @js($p->judul ?? $p->title), @js($jadwalPublikasi($p)))">
-                                                Approve
-                                            </button>
-                                        </form>
+        <button type="button"
+                @click="openApproveModal({{ $p->id }}, @js($p->judul))"
+                class="inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700">
+            Approve
+        </button>
 
-                                        <form method="POST" action="{{ route('kepala_sekolah.approvals.pengumuman.reject', $p) }}">
-                                            @csrf
-                                            <input type="hidden" name="reason" value="">
-
-                                            <button
-                                                type="button"
-                                                class="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-                                                @click="openRejectModal($el.closest('form'), @js($p->judul ?? $p->title), @js($jadwalPublikasi($p)))"
-                                            >
-                                                Reject
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
+        <button type="button"
+                @click="openRejectModal({{ $p->id }}, @js($p->judul))"
+                class="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700">
+            Reject
+        </button>
+    </div>
+</td>
                             </tr>
                         @empty
                             <tr>
@@ -298,8 +284,8 @@
                             <th class="px-5 py-3 text-left font-semibold">Status</th>
                             <th class="px-5 py-3 text-left font-semibold">Diproses</th>
                             <th class="px-5 py-3 text-left font-semibold">Catatan</th>
-                            <th class="px-5 py-3 text-left font-semibold">Aksi</th>
-                        </tr>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700 w-[280px]">Aksi</th>                        
+                            </tr>
                     </thead>
 
                     <tbody class="divide-y divide-gray-100">
