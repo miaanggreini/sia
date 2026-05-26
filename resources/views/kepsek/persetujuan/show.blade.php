@@ -16,10 +16,7 @@
         }
 
         try {
-            return Carbon::parse($value)
-                ->timezone('Asia/Jakarta')
-                ->locale('id')
-                ->translatedFormat('d F Y H:i');
+            return Carbon::parse($value)->locale('id')->translatedFormat('d F Y H:i');
         } catch (\Exception $e) {
             return '-';
         }
@@ -50,28 +47,6 @@
 
     $judul = $item->judul ?? $item->title ?? '-';
     $isi = $item->isi ?? $item->content ?? '-';
-
-    /*
-    |--------------------------------------------------------------------------
-    | Tanggal publikasi / jadwal publikasi
-    |--------------------------------------------------------------------------
-    | published_at biasanya dipakai ketika pengumuman sudah benar-benar publish.
-    | Kalau admin mengatur jadwal publish, bisa saja kolomnya berbeda.
-    | Maka dibuat fallback supaya view kepsek tetap bisa menampilkan tanggalnya.
-    */
-    $jadwalPublikasi =
-        data_get($item, 'published_at')
-        ?? data_get($item, 'publish_at')
-        ?? data_get($item, 'published_scheduled_at')
-        ?? data_get($item, 'scheduled_at')
-        ?? data_get($item, 'tanggal_publish')
-        ?? data_get($item, 'tanggal_publikasi')
-        ?? data_get($item, 'waktu_publish')
-        ?? data_get($item, 'waktu_publikasi');
-
-    $labelPublikasi = in_array($status, ['published', 'publik'], true)
-        ? 'Dipublikasikan'
-        : 'Jadwal Publikasi';
 @endphp
 
 <div class="space-y-6">
@@ -87,6 +62,7 @@
                 Baca isi lengkap pengumuman sebelum memberikan keputusan.
             </p>
         </div>
+
     </div>
 
     {{-- Alert --}}
@@ -118,9 +94,9 @@
     <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
 
         {{-- Card Header --}}
-        <div class="border-b bg-gray-50 px-5 py-5 sm:px-6">
+        <div class="border-b bg-gray-50 px-6 py-5">
             <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div class="min-w-0">
+                <div>
                     <h2 class="text-xl font-bold text-gray-900">
                         {{ $judul }}
                     </h2>
@@ -136,7 +112,7 @@
                     </div>
                 </div>
 
-                <div class="shrink-0 text-sm text-gray-500 md:text-right">
+                <div class="text-sm text-gray-500 md:text-right">
                     <div>Dibuat</div>
                     <div class="font-semibold text-gray-700">
                         {{ $formatTanggal($item->created_at ?? null) }}
@@ -146,7 +122,7 @@
         </div>
 
         {{-- Body --}}
-        <div class="space-y-6 px-5 py-6 sm:px-6">
+        <div class="space-y-6 px-6 py-6">
 
             {{-- Isi --}}
             <div>
@@ -158,6 +134,39 @@
                     {{ $isi }}
                 </div>
             </div>
+
+            {{-- Jadwal Publikasi --}}
+            @if(!empty($item->tanggal_mulai))
+            <div class="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4">
+                <div class="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Jadwal Tayang yang Diusulkan Admin
+                </div>
+                <div class="flex flex-wrap gap-4 text-sm">
+                    <div>
+                        <span class="text-xs font-medium uppercase text-blue-500">Mulai Tayang</span>
+                        <div class="mt-0.5 font-semibold text-blue-900">
+                            {{ $item->tanggal_mulai instanceof \Carbon\Carbon ? $item->tanggal_mulai->format('d M Y') : \Carbon\Carbon::parse($item->tanggal_mulai)->format('d M Y') }}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="text-xs font-medium uppercase text-blue-500">Selesai Tayang</span>
+                        <div class="mt-0.5 font-semibold text-blue-900">
+                            @if(!empty($item->tanggal_selesai))
+                                {{ $item->tanggal_selesai instanceof \Carbon\Carbon ? $item->tanggal_selesai->format('d M Y') : \Carbon\Carbon::parse($item->tanggal_selesai)->format('d M Y') }}
+                            @else
+                                <span class="italic text-blue-500">Tidak ada batas</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                <p class="mt-3 text-xs text-blue-600">
+                    Jika jadwal ini tidak sesuai, silakan tolak pengumuman dan sampaikan alasan agar admin dapat memperbaikinya.
+                </p>
+            </div>
+            @endif
 
             {{-- Catatan penolakan --}}
             @if(!empty($item->alasan_tolak))
@@ -196,24 +205,18 @@
 
                 <div class="rounded-xl border border-gray-200 bg-white px-4 py-3">
                     <div class="text-xs font-medium uppercase text-gray-400">
-                        {{ $labelPublikasi }}
+                        Dipublikasikan
                     </div>
 
                     <div class="mt-1 text-sm font-semibold text-gray-800">
-                        {{ $formatTanggal($jadwalPublikasi) }}
+                        {{ $formatTanggal($item->published_at ?? null) }}
                     </div>
-
-                    @if(empty($jadwalPublikasi) && $status === 'approved')
-                        <div class="mt-1 text-xs text-amber-600">
-                            Belum dijadwalkan admin.
-                        </div>
-                    @endif
                 </div>
             </div>
         </div>
 
         {{-- Action --}}
-        <div class="border-t bg-gray-50 px-5 py-4 sm:px-6">
+        <div class="border-t bg-gray-50 px-6 py-4">
             <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <a href="{{ $backUrl }}"
                    class="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-100">

@@ -30,58 +30,31 @@
 
   <div
     x-data="{
-      approveOpen: false,
-      rejectOpen: false,
-
-      approveForm: null,
-      rejectForm: null,
-
-      approveTitle: '',
-      rejectTitle: '',
-      reason: '',
-
-      openApproveModal(form, title) {
-        this.approveForm = form;
-        this.approveTitle = title || 'Pengumuman';
-        this.approveOpen = true;
-      },
-
-      closeApproveModal() {
-        this.approveOpen = false;
-        this.approveForm = null;
-        this.approveTitle = '';
-      },
-
-      submitApprove() {
-        if (!this.approveForm) return;
-        this.approveForm.submit();
-      },
-
-      openRejectModal(form, title) {
-        this.rejectForm = form;
-        this.rejectTitle = title || 'Pengumuman';
+      open:false,
+      reason:'',
+      form:null,
+      title:'',
+      openModal(f, t){
+        this.form = f;
+        this.title = t || 'Pengumuman';
         this.reason = '';
-        this.rejectOpen = true;
+        this.open = true;
         this.$nextTick(() => this.$refs.reasonInput?.focus());
       },
-
-      closeRejectModal() {
-        this.rejectOpen = false;
+      closeModal(){
+        this.open = false;
         this.reason = '';
-        this.rejectForm = null;
-        this.rejectTitle = '';
+        this.form = null;
+        this.title = '';
       },
-
-      submitReject() {
-        if (!this.rejectForm) return;
-
-        if ((this.reason || '').trim().length < 3) {
+      submitReject(){
+        if(!this.form) return;
+        if((this.reason || '').trim().length < 3){
           this.$refs.reasonInput?.focus();
           return;
         }
-
-        this.rejectForm.querySelector('input[name=reason]').value = this.reason.trim();
-        this.rejectForm.submit();
+        this.form.querySelector('input[name=reason]').value = this.reason.trim();
+        this.form.submit();
       }
     }"
     class="space-y-6"
@@ -102,8 +75,8 @@
           <thead class="bg-gray-50 text-gray-700 border-b">
             <tr>
               <th class="px-5 py-3 text-left font-semibold">Judul</th>
-              <th class="px-5 py-3 text-left font-semibold">Status</th>
-              <th class="px-5 py-3 text-left font-semibold">Dibuat</th>
+              <th class="px-5 py-3 text-left font-semibold">Jadwal Tayang</th>
+              <th class="px-5 py-3 text-left font-semibold">Diajukan</th>
               <th class="px-5 py-3 text-left font-semibold">Aksi</th>
             </tr>
           </thead>
@@ -124,9 +97,21 @@
                 </td>
 
                 <td class="px-5 py-4 align-top">
-                  <span class="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                    Pending
-                  </span>
+                  @if(!empty($p->tanggal_mulai))
+                    <div class="text-sm font-semibold text-gray-800">
+                      {{ \Carbon\Carbon::parse($p->tanggal_mulai)->format('d M Y') }}
+                    </div>
+                    <div class="text-xs text-gray-400 mt-0.5">
+                      s/d
+                      @if(!empty($p->tanggal_selesai))
+                        {{ \Carbon\Carbon::parse($p->tanggal_selesai)->format('d M Y') }}
+                      @else
+                        <span class="italic">tidak ada batas</span>
+                      @endif
+                    </div>
+                  @else
+                    <span class="text-xs text-gray-400 italic">Belum ditentukan</span>
+                  @endif
                 </td>
 
                 <td class="px-5 py-4 align-top text-gray-700 whitespace-nowrap">
@@ -143,11 +128,11 @@
 
                     {{-- APPROVE --}}
                     <form method="POST"
-                          action="{{ route('kepala_sekolah.approvals.pengumuman.approve', $p) }}">
+                          action="{{ route('kepala_sekolah.approvals.pengumuman.approve', $p) }}"
+                          onsubmit="return confirm('Setujui pengumuman ini?')">
                       @csrf
-                      <button type="button"
-                              class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-medium"
-                              @click="openApproveModal($el.closest('form'), @js($p->judul ?? $p->title))">
+                      <button type="submit"
+                              class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-medium">
                         Approve
                       </button>
                     </form>
@@ -160,7 +145,7 @@
                       <button
                         type="button"
                         class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 text-sm font-medium"
-                        @click="openRejectModal($el.closest('form'), @js($p->judul ?? $p->title))"
+                        @click="openModal($el.closest('form'), @js($p->judul ?? $p->title))"
                       >
                         Reject
                       </button>
@@ -271,99 +256,19 @@
       </div>
     </section>
 
-    {{-- MODAL APPROVE --}}
-    <div
-      x-show="approveOpen"
-      x-transition.opacity
-      class="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style="display:none;"
-      @keydown.escape.window="closeApproveModal()"
-    >
-      <div class="absolute inset-0 bg-black/45" @click="closeApproveModal()"></div>
-
-      <div
-        x-transition
-        class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border overflow-hidden"
-        @click.stop
-      >
-        <div class="px-5 py-4 border-b flex items-start gap-3">
-          <div class="w-11 h-11 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 class="w-6 h-6"
-                 viewBox="0 0 24 24"
-                 fill="none"
-                 stroke="currentColor"
-                 stroke-width="2">
-              <path d="M20 6 9 17l-5-5"/>
-            </svg>
-          </div>
-
-          <div class="min-w-0">
-            <div class="text-base font-semibold text-gray-900">
-              Setujui Pengumuman?
-            </div>
-            <div class="text-xs text-gray-500 mt-1">
-              Pengumuman yang disetujui akan menunggu proses publikasi oleh admin.
-            </div>
-          </div>
-
-          <button type="button"
-                  class="ml-auto text-gray-400 hover:text-gray-600"
-                  @click="closeApproveModal()"
-                  aria-label="Tutup">
-            <svg xmlns="http://www.w3.org/2000/svg"
-                 class="w-5 h-5"
-                 viewBox="0 0 24 24"
-                 fill="none"
-                 stroke="currentColor"
-                 stroke-width="2">
-              <path d="M18 6 6 18M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-
-        <div class="px-5 py-4">
-          <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
-            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-              Judul Pengumuman
-            </div>
-            <div class="mt-1 text-sm font-semibold text-gray-900" x-text="approveTitle"></div>
-          </div>
-        </div>
-
-        <div class="px-5 py-4 border-t bg-gray-50 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            class="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50 text-sm font-medium text-gray-700"
-            @click="closeApproveModal()"
-          >
-            Batal
-          </button>
-
-          <button
-            type="button"
-            class="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm font-medium"
-            @click="submitApprove()"
-          >
-            Ya, Setujui
-          </button>
-        </div>
-      </div>
-    </div>
-
     {{-- MODAL REJECT --}}
     <div
-      x-show="rejectOpen"
+      x-show="open"
       x-transition.opacity
-      class="fixed inset-0 z-50 flex items-center justify-center px-4"
+      class="fixed inset-0 z-50 flex items-center justify-center"
       style="display:none;"
-      @keydown.escape.window="closeRejectModal()"
+      @keydown.escape.window="closeModal()"
     >
-      <div class="absolute inset-0 bg-black/45" @click="closeRejectModal()"></div>
+      <div class="absolute inset-0 bg-black/40" @click="closeModal()"></div>
 
       <div
         x-transition
-        class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border overflow-hidden"
+        class="relative w-full max-w-md mx-4 bg-white rounded-2xl shadow-xl border"
         @click.stop
       >
         <div class="px-5 py-4 border-b flex items-start gap-3">
@@ -382,12 +287,12 @@
             <div class="text-base font-semibold text-gray-900">
               Tolak Pengumuman
             </div>
-            <div class="text-xs text-gray-500 mt-0.5 truncate" x-text="rejectTitle"></div>
+            <div class="text-xs text-gray-500 mt-0.5 truncate" x-text="title"></div>
           </div>
 
           <button type="button"
                   class="ml-auto text-gray-400 hover:text-gray-600"
-                  @click="closeRejectModal()"
+                  @click="closeModal()"
                   aria-label="Tutup">
             <svg xmlns="http://www.w3.org/2000/svg"
                  class="w-5 h-5"
@@ -424,7 +329,7 @@
           <button
             type="button"
             class="px-4 py-2 rounded-lg border bg-white hover:bg-gray-50 text-sm"
-            @click="closeRejectModal()"
+            @click="closeModal()"
           >
             Batal
           </button>

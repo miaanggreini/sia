@@ -44,7 +44,7 @@
     $note = match($item->status) {
       'draft'    => 'Pengumuman masih berupa draft dan belum dikirim untuk persetujuan.',
       'pending'  => 'Pengumuman sudah dikirim dan sedang menunggu approval Kepala Sekolah.',
-      'approved' => 'Pengumuman telah disetujui. Menunggu publikasi oleh Admin.',
+      'approved' => 'Pengumuman telah disetujui dan dipublikasikan.',
       'rejected' => 'Pengumuman ditolak. Silakan perbarui isi dan kirim ulang.',
       'publik'   => $item->published_at
                       ? 'Pengumuman telah dipublikasikan pada '.$item->published_at->format('d M Y H:i').'.'
@@ -119,13 +119,20 @@
     </h2>
 
     @if($item->tanggal_mulai || $item->tanggal_selesai)
-      <p class="text-gray-500 text-sm">
-        {{ $item->tanggal_mulai ? $item->tanggal_mulai->format('d M Y') : '-' }}
-
-        @if($item->tanggal_selesai)
-          – {{ $item->tanggal_selesai->format('d M Y') }}
-        @endif
-      </p>
+      <div class="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm text-blue-700">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <span>
+          <span class="font-semibold">Jadwal Tayang:</span>
+          {{ $item->tanggal_mulai ? $item->tanggal_mulai->format('d M Y') : '-' }}
+          @if($item->tanggal_selesai)
+            &ndash; {{ $item->tanggal_selesai->format('d M Y') }}
+          @else
+            &ndash; <span class="italic">tidak ada batas</span>
+          @endif
+        </span>
+      </div>
     @endif
 
     <div class="prose max-w-none text-gray-800 whitespace-pre-line">

@@ -12,7 +12,6 @@ class AnnouncementApprovalController extends Controller
     {
         $keyword = $request->q;
 
-        // Pengumuman yang masih menunggu persetujuan
         $pendingItems = Pengumuman::query()
             ->when($keyword, function ($qry) use ($keyword) {
                 $qry->where('judul', 'like', '%' . $keyword . '%');
@@ -21,12 +20,11 @@ class AnnouncementApprovalController extends Controller
             ->latest()
             ->paginate(10, ['*'], 'pending_page');
 
-        // Riwayat pengumuman yang sudah diproses
         $historyItems = Pengumuman::query()
             ->when($keyword, function ($qry) use ($keyword) {
                 $qry->where('judul', 'like', '%' . $keyword . '%');
             })
-            ->whereIn('status', ['approved', 'rejected', 'publik'])
+            ->whereIn('status', ['publik', 'rejected'])
             ->orderByDesc('approved_at')
             ->orderByDesc('created_at')
             ->paginate(10, ['*'], 'history_page');
@@ -34,64 +32,58 @@ class AnnouncementApprovalController extends Controller
         return view('kepsek.persetujuan.index', [
             'pendingItems' => $pendingItems,
             'historyItems' => $historyItems,
-            'q' => $keyword,
+            'q'            => $keyword,
         ]);
     }
 
+    /**
+     * Kepsek menyetujui → langsung publik, tanggal publikasi diambil dari data yang sudah diisi admin.
+     */
     public function approve(Pengumuman $announcement)
     {
+        if ($announcement->status !== 'pending') {
+            return back()->with('err', 'Hanya pengumuman pending yang bisa disetujui.');
+        }
+
         $announcement->forceFill([
-            'status'       => 'approved',
+            'status'       => 'publik',
             'approved_at'  => now(),
+            'published_at' => now(),
             'alasan_tolak' => null,
         ])->save();
 
-        return back()->with('ok', 'Pengumuman disetujui.');
+        return back()->with('ok', 'Pengumuman disetujui dan langsung dipublikasikan sesuai jadwal yang ditetapkan admin.');
     }
 
+    /**
+     * Kepsek menolak → status rejected, admin mendapat alasan penolakan.
+     */
     public function reject(Request $request, Pengumuman $announcement)
     {
+        if ($announcement->status !== 'pending') {
+            return back()->with('err', 'Hanya pengumuman pending yang bisa ditolak.');
+        }
+
         $request->validate([
             'reason' => 'required|string|max:500',
+        ], [
+            'reason.required' => 'Alasan penolakan wajib diisi.',
+            'reason.max'      => 'Alasan penolakan maksimal 500 karakter.',
         ]);
 
         $announcement->forceFill([
             'status'       => 'rejected',
-            'approved_at'  => now(),
+            'approved_at'  => null,
             'alasan_tolak' => $request->reason,
         ])->save();
 
-        return back()->with('ok', 'Pengumuman ditolak.');
+        return back()->with('ok', 'Pengumuman ditolak. Admin akan menerima informasi alasan penolakan.');
     }
 
-    // Method lama, sudah tidak dipakai lagi kalau halaman dijadikan satu.
-    // Boleh dihapus kalau route history juga sudah tidak digunakan.
-    public function history(Request $request)
+    public function show($pengumuman)
     {
-        $status = $request->get('status', 'all');
+        $item = \App\Models\Pengumuman::findOrFail($pengumuman);
 
-        $q = Pengumuman::query()
-            ->when($request->q, fn ($qry) => $qry->where('judul', 'like', '%' . $request->q . '%'))
-            ->whereIn('status', $status === 'all' ? ['approved', 'rejected', 'published'] : [$status])
-            ->when($request->from, fn ($qry) => $qry->whereDate('approved_at', '>=', $request->from))
-            ->when($request->to, fn ($qry) => $qry->whereDate('approved_at', '<=', $request->to))
-            ->orderByDesc('approved_at')
-            ->orderByDesc('created_at');
-
-        $items = $q->paginate(12);
-
-        return view('kepsek.persetujuan.riwayat', [
-            'items'  => $items,
-            'q'      => $request->q,
-            'status' => $status,
-            'from'   => $request->from,
-            'to'     => $request->to,
-        ]);
+        return view('kepsek.persetujuan.show', compact('item'));
     }
-public function show($pengumuman)
-{
-    $item = \App\Models\Pengumuman::findOrFail($pengumuman);
-
-    return view('kepsek.persetujuan.show', compact('item'));
-}
 }

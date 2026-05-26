@@ -18,7 +18,7 @@ class PengumumanController extends Controller
 
     public function index(Request $r)
     {
-        $q = trim((string) $r->q);
+        $q        = trim((string) $r->q);
         $kategori = $r->kategori;
 
         $items = Pengumuman::query()
@@ -37,14 +37,9 @@ class PengumumanController extends Controller
 
         $kategoriOptions = self::KATEGORI_OPTIONS;
 
-        /*
-         * Ringkasan kecil untuk membantu admin.
-         * Urutan tabel tetap berdasarkan data terbaru,
-         * tetapi admin tetap tahu ada pengumuman yang butuh tindakan.
-         */
-        $perluDiajukanCount = Pengumuman::whereIn('status', ['draft', 'rejected'])->count();
+        $perluDiajukanCount    = Pengumuman::whereIn('status', ['draft', 'rejected'])->count();
         $menungguApprovalCount = Pengumuman::where('status', 'pending')->count();
-        $siapPublikasiCount = Pengumuman::where('status', 'approved')->count();
+        $terpublikasiCount     = Pengumuman::where('status', 'publik')->count();
 
         return view('admin.pengumuman.index', compact(
             'items',
@@ -53,7 +48,7 @@ class PengumumanController extends Controller
             'kategoriOptions',
             'perluDiajukanCount',
             'menungguApprovalCount',
-            'siapPublikasiCount'
+            'terpublikasiCount'
         ));
     }
 
@@ -62,7 +57,7 @@ class PengumumanController extends Controller
         $kategoriOptions = self::KATEGORI_OPTIONS;
 
         return view('admin.pengumuman.create', [
-            'item' => new Pengumuman(),
+            'item'            => new Pengumuman(),
             'kategoriOptions' => $kategoriOptions,
         ]);
     }
@@ -70,14 +65,20 @@ class PengumumanController extends Controller
     public function store(Request $r)
     {
         $data = $r->validate([
-            'judul'    => ['required', 'string', 'max:180'],
-            'isi'      => ['required', 'string'],
-            'kategori' => ['nullable', Rule::in(array_keys(self::KATEGORI_OPTIONS))],
+            'judul'           => ['required', 'string', 'max:180'],
+            'isi'             => ['required', 'string'],
+            'kategori'        => ['nullable', Rule::in(array_keys(self::KATEGORI_OPTIONS))],
+            'tanggal_mulai'   => ['required', 'date'],
+            'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
         ], [
-            'judul.required' => 'Judul pengumuman wajib diisi.',
-            'judul.max' => 'Judul pengumuman maksimal 180 karakter.',
-            'isi.required' => 'Isi pengumuman wajib diisi.',
-            'kategori.in' => 'Kategori pengumuman tidak valid.',
+            'judul.required'          => 'Judul pengumuman wajib diisi.',
+            'judul.max'               => 'Judul pengumuman maksimal 180 karakter.',
+            'isi.required'            => 'Isi pengumuman wajib diisi.',
+            'kategori.in'             => 'Kategori pengumuman tidak valid.',
+            'tanggal_mulai.required'  => 'Tanggal mulai tayang wajib diisi.',
+            'tanggal_mulai.date'      => 'Tanggal mulai tayang tidak valid.',
+            'tanggal_selesai.date'    => 'Tanggal selesai tayang tidak valid.',
+            'tanggal_selesai.after_or_equal' => 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai.',
         ]);
 
         $data['status'] = 'draft';
@@ -87,21 +88,6 @@ class PengumumanController extends Controller
         return redirect()
             ->route('admin.pengumuman.index')
             ->with('success', 'Pengumuman berhasil dibuat sebagai draft.');
-    }
-
-    public function submit(Pengumuman $pengumuman)
-    {
-        if (!in_array($pengumuman->status, ['draft', 'rejected'], true)) {
-            return back()->with('error', 'Hanya pengumuman Draft atau Ditolak yang bisa diajukan.');
-        }
-
-        $pengumuman->update([
-            'status'       => 'pending',
-            'submitted_at' => now(),
-            'alasan_tolak' => null,
-        ]);
-
-        return back()->with('success', 'Pengumuman berhasil diajukan ke Kepala Sekolah.');
     }
 
     public function edit(Pengumuman $pengumuman)
@@ -115,7 +101,7 @@ class PengumumanController extends Controller
         $kategoriOptions = self::KATEGORI_OPTIONS;
 
         return view('admin.pengumuman.edit', [
-            'item' => $pengumuman,
+            'item'            => $pengumuman,
             'kategoriOptions' => $kategoriOptions,
         ]);
     }
@@ -129,22 +115,25 @@ class PengumumanController extends Controller
         }
 
         $data = $r->validate([
-            'judul'    => ['required', 'string', 'max:180'],
-            'isi'      => ['required', 'string'],
-            'kategori' => ['nullable', Rule::in(array_keys(self::KATEGORI_OPTIONS))],
+            'judul'           => ['required', 'string', 'max:180'],
+            'isi'             => ['required', 'string'],
+            'kategori'        => ['nullable', Rule::in(array_keys(self::KATEGORI_OPTIONS))],
+            'tanggal_mulai'   => ['required', 'date'],
+            'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
         ], [
-            'judul.required' => 'Judul pengumuman wajib diisi.',
-            'judul.max' => 'Judul pengumuman maksimal 180 karakter.',
-            'isi.required' => 'Isi pengumuman wajib diisi.',
-            'kategori.in' => 'Kategori pengumuman tidak valid.',
+            'judul.required'          => 'Judul pengumuman wajib diisi.',
+            'judul.max'               => 'Judul pengumuman maksimal 180 karakter.',
+            'isi.required'            => 'Isi pengumuman wajib diisi.',
+            'kategori.in'             => 'Kategori pengumuman tidak valid.',
+            'tanggal_mulai.required'  => 'Tanggal mulai tayang wajib diisi.',
+            'tanggal_mulai.date'      => 'Tanggal mulai tayang tidak valid.',
+            'tanggal_selesai.date'    => 'Tanggal selesai tayang tidak valid.',
+            'tanggal_selesai.after_or_equal' => 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai.',
         ]);
 
-        /*
-         * Kalau pengumuman sebelumnya ditolak, setelah direvisi jadikan draft lagi.
-         * Alur: rejected -> admin revisi -> draft -> ajukan ulang -> pending.
-         */
+        // Setelah direvisi dari rejected, kembalikan ke draft agar bisa diajukan ulang
         if ($pengumuman->status === 'rejected') {
-            $data['status'] = 'draft';
+            $data['status']       = 'draft';
             $data['alasan_tolak'] = null;
             $data['submitted_at'] = null;
         }
@@ -174,57 +163,18 @@ class PengumumanController extends Controller
         return back()->with('success', 'Pengumuman berhasil dihapus.');
     }
 
-    public function approve(Pengumuman $pengumuman)
+    public function submit(Pengumuman $pengumuman)
     {
-        if ($pengumuman->status !== 'pending') {
-            return back()->with('error', 'Hanya pengumuman pending yang bisa disetujui.');
+        if (!in_array($pengumuman->status, ['draft', 'rejected'], true)) {
+            return back()->with('error', 'Hanya pengumuman Draft atau Ditolak yang bisa diajukan.');
         }
 
         $pengumuman->update([
-            'status'       => 'approved',
-            'approved_at'  => now(),
+            'status'       => 'pending',
+            'submitted_at' => now(),
             'alasan_tolak' => null,
         ]);
 
-        return back()->with('success', 'Pengumuman berhasil disetujui.');
-    }
-
-    public function publishForm(Pengumuman $pengumuman)
-    {
-        if ($pengumuman->status !== 'approved') {
-            return back()->with('error', 'Pengumuman harus disetujui terlebih dahulu.');
-        }
-
-        return view('admin.pengumuman.publish', [
-            'item' => $pengumuman,
-        ]);
-    }
-
-    public function publishStore(Request $r, Pengumuman $pengumuman)
-    {
-        if ($pengumuman->status !== 'approved') {
-            return back()->with('error', 'Pengumuman harus disetujui terlebih dahulu.');
-        }
-
-        $data = $r->validate([
-            'tanggal_mulai'   => ['required', 'date'],
-            'tanggal_selesai' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
-        ], [
-            'tanggal_mulai.required' => 'Tanggal mulai publikasi wajib diisi.',
-            'tanggal_mulai.date' => 'Tanggal mulai publikasi tidak valid.',
-            'tanggal_selesai.date' => 'Tanggal selesai publikasi tidak valid.',
-            'tanggal_selesai.after_or_equal' => 'Tanggal selesai tidak boleh lebih awal dari tanggal mulai.',
-        ]);
-
-        $pengumuman->update([
-            'status'          => 'publik',
-            'tanggal_mulai'   => $data['tanggal_mulai'],
-            'tanggal_selesai' => $data['tanggal_selesai'] ?? null,
-            'published_at'    => now(),
-        ]);
-
-        return redirect()
-            ->route('admin.pengumuman.index')
-            ->with('success', 'Jadwal publikasi berhasil ditetapkan dan pengumuman dipublikasikan.');
+        return back()->with('success', 'Pengumuman berhasil diajukan ke Kepala Sekolah.');
     }
 }

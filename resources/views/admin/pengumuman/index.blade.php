@@ -49,7 +49,7 @@
                 Pengumuman
             </h1>
             <p class="mt-1 text-sm text-gray-500">
-                Kelola pengumuman sekolah, ajukan approval, dan atur publikasi untuk siswa.
+                Kelola pengumuman sekolah, ajukan ke Kepala Sekolah untuk persetujuan, dan pantau status publikasinya.
             </p>
         </div>
 
@@ -84,7 +84,16 @@
 
                     <div class="relative">
                         <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
-
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                 class="h-5 w-5"
+                                 fill="none"
+                                 viewBox="0 0 24 24"
+                                 stroke="currentColor"
+                                 stroke-width="2">
+                                <path stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                      d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z" />
+                            </svg>
                         </span>
 
                         <input type="text"
@@ -150,9 +159,9 @@
         </span>
 
         <span class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-            Siap publikasi:
+            Terpublikasi:
             <span class="rounded-full bg-white px-2 py-0.5 text-emerald-800">
-                {{ $siapPublikasiCount ?? 0 }}
+                {{ $terpublikasiCount ?? 0 }}
             </span>
         </span>
     </div>
@@ -235,13 +244,6 @@
                                                 {{ $item->status === 'rejected' ? 'Ajukan Ulang' : 'Ajukan' }}
                                             </button>
                                         </form>
-                                    @endif
-
-                                    @if($item->status === 'approved')
-                                        <a href="{{ route('admin.pengumuman.publish.form', $item) }}"
-                                           class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700">
-                                            Atur Publikasi
-                                        </a>
                                     @endif
 
                                     <a href="{{ route('admin.pengumuman.show', $item) }}"
