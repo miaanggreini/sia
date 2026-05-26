@@ -1,12 +1,20 @@
 {{-- resources/views/admin/pengumuman/_form.blade.php --}}
-@csrf
 
 @php
+    $item = $item ?? new \App\Models\Pengumuman();
+
+    $kategoriOptions = $kategoriOptions ?? [
+        'akademik' => 'Akademik',
+        'kesiswaan' => 'Kesiswaan',
+        'ekstrakurikuler' => 'Ekstrakurikuler',
+        'kegiatan' => 'Kegiatan',
+    ];
+
     $tanggalMulaiValue = old(
         'tanggal_mulai',
         !empty($item->tanggal_mulai)
             ? \Illuminate\Support\Carbon::parse($item->tanggal_mulai)->format('Y-m-d')
-            : ''
+            : now('Asia/Jakarta')->toDateString()
     );
 
     $tanggalSelesaiValue = old(
@@ -45,11 +53,13 @@
     <div>
         <label for="kategori" class="mb-1 block text-sm font-semibold text-gray-700">
             Kategori
+            <span class="text-red-500">*</span>
         </label>
 
         <select
             id="kategori"
             name="kategori"
+            required
             class="block w-full rounded-xl border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
         >
             <option value="">Pilih kategori pengumuman</option>
@@ -71,6 +81,10 @@
         <div class="mb-3">
             <h3 class="text-sm font-bold text-gray-800">
                 Jadwal Publikasi
+            </h3>
+            <p class="mt-1 text-xs text-gray-500">
+                Tanggal mulai otomatis terisi hari ini, tetapi masih dapat diubah sesuai kebutuhan.
+            </p>
         </div>
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -106,6 +120,7 @@
                     type="date"
                     name="tanggal_selesai"
                     value="{{ $tanggalSelesaiValue }}"
+                    min="{{ $tanggalMulaiValue }}"
                     class="block w-full rounded-xl border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 >
 
