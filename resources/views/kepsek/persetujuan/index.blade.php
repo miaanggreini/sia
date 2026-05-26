@@ -228,8 +228,8 @@
                                 </td>
 
 <td class="px-6 py-4 align-top whitespace-nowrap">
-    <div class="flex min-w-[250px] flex-nowrap items-center gap-2">
-        <a href="{{ route('kepsek.persetujuan.show', $p->id) }}"
+    <div class="flex min-w-[260px] flex-nowrap items-center gap-2">
+        <a href="{{ route('kepala_sekolah.approvals.pengumuman.show', $p->id) }}"
            class="inline-flex h-10 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
             Detail
         </a>
