@@ -10,7 +10,9 @@
               ?? optional($jadwal->rombel)->nama
               ?? '-';
 
+  $statusInfo = $statusInfo ?? ['status' => 'draft'];
   $isFinal = ($statusInfo['status'] ?? 'draft') === 'final';
+  $readOnly = $readOnly ?? $isFinal;
 
   $prefixMap = [
     'LM1' => 'lm1',
@@ -19,7 +21,22 @@
     'LM4' => 'lm4',
   ];
 
+  $komponen = $komponen ?? 'LM1';
   $activePrefix = $prefixMap[$komponen] ?? 'lm1';
+
+  $jenisTp1 = old('jenis_tp1', request('jenis_tp1', 'praktik'));
+  $jenisTp2 = old('jenis_tp2', request('jenis_tp2', 'praktik'));
+  $jenisTp3 = old('jenis_tp3', request('jenis_tp3', 'teori'));
+  $jenisTp4 = old('jenis_tp4', request('jenis_tp4', 'teori'));
+
+  $bobotPraktik = old('bobot_praktik', request('bobot_praktik', 50));
+  $bobotTeori = old('bobot_teori', request('bobot_teori', 50));
+
+  $progress = $progress ?? [
+    'total' => $siswa->count() ?? 0,
+    'missing' => ['LM1' => 0, 'LM2' => 0, 'LM3' => 0, 'LM4' => 0],
+    'missing_any' => 0,
+  ];
 @endphp
 
 <div class="mb-4">
@@ -30,6 +47,7 @@
     Mapel: <span class="font-medium text-indigo-700">{{ $namaMapel }}</span>
     <span class="mx-2">•</span>
     Komponen aktif: <span class="font-medium">{{ $komponen }}</span>
+
     @if(!empty($taAktif))
       <span class="mx-2">•</span>
       TA: <span class="font-medium">{{ $taAktif->nama_tahun ?? '—' }}</span>
@@ -61,7 +79,7 @@
     <div>
       <h2 class="font-semibold text-gray-800">Informasi Penilaian</h2>
       <p class="text-xs text-gray-500 mt-1">
-        Guru menginput nilai TP1–TP4 untuk {{ $komponen }}, lalu sistem menghitung nilai {{ $komponen }} dan nilai akhir otomatis.
+        Guru dapat mengisi nilai TP secara bertahap. TP bernilai 0 dianggap belum digunakan dan tidak ikut menghitung nilai {{ $komponen }}.
       </p>
     </div>
 
@@ -128,9 +146,92 @@
   <input type="hidden" name="komponen" value="{{ $komponen }}">
 
   <div class="px-4 py-3 border-b">
+    <h2 class="font-semibold text-gray-800">Pengaturan Bobot {{ $komponen }}</h2>
+    <p class="text-xs text-gray-500 mt-1">
+      Pilih kategori setiap TP, lalu tentukan bobot Praktik dan Teori. Total bobot wajib 100%.
+      TP yang bernilai 0 tidak ikut dihitung.
+    </p>
+  </div>
+
+  <div class="px-4 py-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="rounded-xl border p-4">
+      <h3 class="font-semibold text-gray-800 mb-3">Kategori TP</h3>
+
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        @foreach([1, 2, 3, 4] as $tp)
+          @php
+            $jenisValue = ${"jenisTp{$tp}"};
+          @endphp
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              TP{{ $tp }}
+            </label>
+            <select
+              name="jenis_tp{{ $tp }}"
+              class="w-full rounded-lg border-gray-300 text-sm"
+              {{ $readOnly ? 'disabled' : '' }}
+            >
+              <option value="praktik" @selected($jenisValue === 'praktik')>Praktik</option>
+              <option value="teori" @selected($jenisValue === 'teori')>Teori</option>
+            </select>
+          </div>
+        @endforeach
+      </div>
+    </div>
+
+    <div class="rounded-xl border p-4">
+      <h3 class="font-semibold text-gray-800 mb-3">Bobot Komponen</h3>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Bobot Praktik (%)
+          </label>
+          <input
+            type="number"
+            name="bobot_praktik"
+            value="{{ $bobotPraktik }}"
+            min="0"
+            max="100"
+            step="0.01"
+            class="w-full rounded-lg border-gray-300 text-right text-sm"
+            {{ $readOnly ? 'disabled' : '' }}
+          >
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Bobot Teori (%)
+          </label>
+          <input
+            type="number"
+            name="bobot_teori"
+            value="{{ $bobotTeori }}"
+            min="0"
+            max="100"
+            step="0.01"
+            class="w-full rounded-lg border-gray-300 text-right text-sm"
+            {{ $readOnly ? 'disabled' : '' }}
+          >
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            Total Bobot
+          </label>
+          <div class="w-full rounded-lg border bg-gray-50 px-3 py-2 text-right text-sm text-gray-700">
+            {{ number_format((float) $bobotPraktik + (float) $bobotTeori, 2) }}%
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="px-4 py-3 border-y bg-gray-50">
     <h2 class="font-semibold text-gray-800">Input Nilai {{ $komponen }}</h2>
     <p class="text-xs text-gray-500 mt-1">
-      Isi TP1 sampai TP4. Nilai {{ $komponen }} dan nilai akhir akan dihitung otomatis oleh sistem saat disimpan.
+      Nilai default 0. TP yang tidak digunakan boleh dibiarkan 0, dan sistem tetap bisa menyimpan nilai.
     </p>
   </div>
 
@@ -149,6 +250,7 @@
           <th class="px-4 py-3 text-left">Status</th>
         </tr>
       </thead>
+
       <tbody class="divide-y">
         @forelse($siswa as $i => $s)
           @php
@@ -166,6 +268,7 @@
 
           <tr class="hover:bg-gray-50">
             <td class="px-4 py-3">{{ $i + 1 }}</td>
+
             <td class="px-4 py-3">
               <div class="font-medium text-gray-900">{{ $s->nama }}</div>
               <div class="text-xs text-gray-500">{{ $s->nis ?? $s->nisn ?? '' }}</div>
@@ -174,7 +277,9 @@
             @for($tp = 1; $tp <= 4; $tp++)
               @php
                 $fieldVal = ${"tp{$tp}Val"};
+                $displayVal = ($fieldVal !== null && $fieldVal !== '') ? $fieldVal : 0;
               @endphp
+
               <td class="px-4 py-3">
                 <input
                   type="number"
@@ -183,30 +288,34 @@
                   min="0"
                   max="100"
                   step="0.01"
-                  placeholder="—"
-                  value="{{ $fieldVal }}"
+                  placeholder="0"
+                  value="{{ $displayVal }}"
                   {{ $readOnly ? 'disabled' : '' }}
                 >
               </td>
             @endfor
 
             <td class="px-4 py-3 font-medium text-indigo-700">
-              {{ $currentLm !== null ? number_format($currentLm, 2) : '—' }}
+              {{ $currentLm !== null ? number_format($currentLm, 2) : '0.00' }}
             </td>
+
             <td class="px-4 py-3 font-semibold text-gray-800">
-              {{ $currentAkhir !== null ? number_format($currentAkhir, 2) : '—' }}
+              {{ $currentAkhir !== null ? number_format($currentAkhir, 2) : '0.00' }}
             </td>
+
             <td class="px-4 py-3">
               @if($currentStatus === 'tuntas')
                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
                   Tuntas
                 </span>
-              @elseif($currentStatus === 'tidak_tuntas')
+              @elseif($currentStatus === 'tidak_tuntas' && $currentAkhir !== null)
                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
                   Tidak Tuntas
                 </span>
               @else
-                <span class="text-gray-400">—</span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                  Belum Dinilai
+                </span>
               @endif
             </td>
           </tr>
@@ -256,33 +365,40 @@
           <th class="px-4 py-3 text-left">Status</th>
         </tr>
       </thead>
+
       <tbody class="divide-y">
         @forelse($siswa as $i => $s)
           @php
             $row = $nilai[$s->id] ?? null;
           @endphp
+
           <tr class="hover:bg-gray-50">
             <td class="px-4 py-3">{{ $i + 1 }}</td>
+
             <td class="px-4 py-3">
               <div class="font-medium text-gray-900">{{ $s->nama }}</div>
               <div class="text-xs text-gray-500">{{ $s->nis ?? $s->nisn ?? '' }}</div>
             </td>
-            <td class="px-4 py-3">{{ $row?->lm1_nilai !== null ? number_format($row->lm1_nilai, 2) : '—' }}</td>
-            <td class="px-4 py-3">{{ $row?->lm2_nilai !== null ? number_format($row->lm2_nilai, 2) : '—' }}</td>
-            <td class="px-4 py-3">{{ $row?->lm3_nilai !== null ? number_format($row->lm3_nilai, 2) : '—' }}</td>
-            <td class="px-4 py-3">{{ $row?->lm4_nilai !== null ? number_format($row->lm4_nilai, 2) : '—' }}</td>
-            <td class="px-4 py-3 font-semibold">{{ $row?->nilai_akhir !== null ? number_format($row->nilai_akhir, 2) : '—' }}</td>
+
+            <td class="px-4 py-3">{{ $row?->lm1_nilai !== null ? number_format($row->lm1_nilai, 2) : '0.00' }}</td>
+            <td class="px-4 py-3">{{ $row?->lm2_nilai !== null ? number_format($row->lm2_nilai, 2) : '0.00' }}</td>
+            <td class="px-4 py-3">{{ $row?->lm3_nilai !== null ? number_format($row->lm3_nilai, 2) : '0.00' }}</td>
+            <td class="px-4 py-3">{{ $row?->lm4_nilai !== null ? number_format($row->lm4_nilai, 2) : '0.00' }}</td>
+            <td class="px-4 py-3 font-semibold">{{ $row?->nilai_akhir !== null ? number_format($row->nilai_akhir, 2) : '0.00' }}</td>
+
             <td class="px-4 py-3">
               @if(($row?->status ?? null) === 'tuntas')
                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
                   Tuntas
                 </span>
-              @elseif(($row?->status ?? null) === 'tidak_tuntas')
+              @elseif(($row?->status ?? null) === 'tidak_tuntas' && $row?->nilai_akhir !== null)
                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
                   Tidak Tuntas
                 </span>
               @else
-                <span class="text-gray-400">—</span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                  Belum Dinilai
+                </span>
               @endif
             </td>
           </tr>
@@ -300,17 +416,17 @@
   <div class="p-4 border-t flex items-center justify-between flex-wrap gap-3">
     <div class="text-sm text-gray-700">
       Kelengkapan:
-      LM1 <span class="{{ $progress['missing']['LM1'] ? 'text-red-600' : 'text-green-600' }}">
-        {{ $progress['total'] - $progress['missing']['LM1'] }}/{{ $progress['total'] }}
+      LM1 <span class="{{ ($progress['missing']['LM1'] ?? 0) ? 'text-red-600' : 'text-green-600' }}">
+        {{ ($progress['total'] ?? 0) - ($progress['missing']['LM1'] ?? 0) }}/{{ $progress['total'] ?? 0 }}
       </span>,
-      LM2 <span class="{{ $progress['missing']['LM2'] ? 'text-red-600' : 'text-green-600' }}">
-        {{ $progress['total'] - $progress['missing']['LM2'] }}/{{ $progress['total'] }}
+      LM2 <span class="{{ ($progress['missing']['LM2'] ?? 0) ? 'text-red-600' : 'text-green-600' }}">
+        {{ ($progress['total'] ?? 0) - ($progress['missing']['LM2'] ?? 0) }}/{{ $progress['total'] ?? 0 }}
       </span>,
-      LM3 <span class="{{ $progress['missing']['LM3'] ? 'text-red-600' : 'text-green-600' }}">
-        {{ $progress['total'] - $progress['missing']['LM3'] }}/{{ $progress['total'] }}
+      LM3 <span class="{{ ($progress['missing']['LM3'] ?? 0) ? 'text-red-600' : 'text-green-600' }}">
+        {{ ($progress['total'] ?? 0) - ($progress['missing']['LM3'] ?? 0) }}/{{ $progress['total'] ?? 0 }}
       </span>,
-      LM4 <span class="{{ $progress['missing']['LM4'] ? 'text-red-600' : 'text-green-600' }}">
-        {{ $progress['total'] - $progress['missing']['LM4'] }}/{{ $progress['total'] }}
+      LM4 <span class="{{ ($progress['missing']['LM4'] ?? 0) ? 'text-red-600' : 'text-green-600' }}">
+        {{ ($progress['total'] ?? 0) - ($progress['missing']['LM4'] ?? 0) }}/{{ $progress['total'] ?? 0 }}
       </span>
     </div>
 
@@ -321,7 +437,7 @@
         <button type="button"
                 onclick="openModalFinalisasi()"
                 class="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-                {{ $progress['missing_any'] > 0 ? 'disabled' : '' }}>
+                {{ ($progress['missing_any'] ?? 0) > 0 ? 'disabled' : '' }}>
           Finalisasi & Kunci Nilai
         </button>
       </form>
