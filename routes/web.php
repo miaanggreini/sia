@@ -370,7 +370,11 @@ Route::get('/presensi/mapel-by-rombel', [PresensiGuruController::class, 'mapelBy
         Route::get('/penilaian/input', [GuruPenilaianController::class, 'create'])->name('penilaian.create');
         Route::post('/penilaian/simpan', [GuruPenilaianController::class, 'store'])->name('penilaian.store');
         Route::post('/penilaian/finalize', [GuruPenilaianController::class, 'finalize'])->name('penilaian.finalize');
+Route::get('/penilaian/template-excel', [GuruPenilaianController::class, 'downloadTemplateExcel'])
+    ->name('penilaian.template-excel');
 
+Route::post('/penilaian/import-excel', [GuruPenilaianController::class, 'importExcel'])
+    ->name('penilaian.import-excel');
         // WALI KELAS: DATA KELAS & SISWA
         Route::get('kelas-wali', [WaliKelasController::class, 'kelasSaya'])->name('wali.kelas-saya');
         Route::get('kelas-wali/{rombel}', [WaliKelasController::class, 'daftarSiswa'])->name('wali.daftar-siswa');
