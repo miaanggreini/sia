@@ -32,12 +32,6 @@
     $oldJenisTp3 = old('jenis_tp3', request('jenis_tp3', 'teori'));
     $oldJenisTp4 = old('jenis_tp4', request('jenis_tp4', 'teori'));
 
-    /*
-    |--------------------------------------------------------------------------
-    | Default bobot dibuat 50:50 agar total langsung 100%.
-    | Guru tetap bisa mengubah bobot praktik/teori sesuai kebutuhan.
-    |--------------------------------------------------------------------------
-    */
     $oldBobotPraktik = old('bobot_praktik', '');
     $oldBobotTeori = old('bobot_teori', '');
 
@@ -358,6 +352,21 @@
         @endif
 
         @unless($isFinal)
+          <a href="{{ route('guru.penilaian.template-excel', [
+              'rombel_id' => $jadwal->rombel_id,
+              'mata_pelajaran_id' => $jadwal->mata_pelajaran_id,
+              'komponen' => $komponen,
+            ]) }}"
+            class="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700">
+            Download Template Excel
+          </a>
+
+          <button type="button"
+                  onclick="openModalImportExcel()"
+                  class="px-4 py-2 rounded-md bg-amber-500 text-white hover:bg-amber-600">
+            Import Excel
+          </button>
+
           <button type="submit" id="btnSimpanNilai" class="px-5 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
             Simpan Nilai
           </button>
@@ -365,6 +374,70 @@
       </div>
     </div>
   </form>
+
+  {{-- MODAL IMPORT EXCEL --}}
+  @unless($isFinal)
+    <div id="modalImportExcel"
+         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4">
+
+      <div class="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden animate-modalFinalisasi">
+        <div class="px-6 py-5 border-b">
+          <h3 class="text-lg font-semibold text-gray-900">
+            Import Nilai dari Excel
+          </h3>
+
+          <p class="mt-1 text-sm text-gray-500">
+            Upload file template Excel yang sudah diisi. Pastikan struktur kolom tidak diubah.
+          </p>
+        </div>
+
+        <form method="POST"
+              action="{{ route('guru.penilaian.import-excel') }}"
+              enctype="multipart/form-data"
+              class="px-6 py-5 space-y-4">
+          @csrf
+
+          <input type="hidden" name="jadwal_id" value="{{ $jadwal->id }}">
+          <input type="hidden" name="rombel_id" value="{{ $jadwal->rombel_id }}">
+          <input type="hidden" name="mata_pelajaran_id" value="{{ $jadwal->mata_pelajaran_id }}">
+          <input type="hidden" name="komponen" value="{{ $komponen }}">
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              File Excel
+            </label>
+
+            <input type="file"
+                   name="file_excel"
+                   accept=".xlsx,.xls"
+                   required
+                   class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+
+            <p class="text-xs text-gray-500 mt-2">
+              Gunakan file dari tombol Download Template Excel agar formatnya sesuai.
+            </p>
+          </div>
+
+          <div class="rounded-lg bg-yellow-50 border border-yellow-100 px-4 py-3 text-sm text-yellow-800">
+            Nilai 0 pada Excel dianggap kosong/tidak digunakan. Sistem akan menghitung ulang nilai LM di server.
+          </div>
+
+          <div class="flex justify-end gap-2 border-t pt-4">
+            <button type="button"
+                    onclick="closeModalImportExcel()"
+                    class="px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50">
+              Batal
+            </button>
+
+            <button type="submit"
+                    class="px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600">
+              Upload & Import
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  @endunless
 
   {{-- RINGKASAN --}}
   <div class="bg-white rounded-lg shadow border mb-6">
@@ -419,8 +492,6 @@
               </td>
 
               <td class="px-4 py-3">
-
-              <td class="px-4 py-3">
                 @if(($row?->status ?? null) === 'tuntas')
                   <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
                     Tuntas
@@ -438,7 +509,8 @@
             </tr>
           @empty
             <tr>
-            <td colspan="9" class="px-4 py-6 text-center text-gray-500">                Belum ada data nilai.
+              <td colspan="9" class="px-4 py-6 text-center text-gray-500">
+                Belum ada data nilai.
               </td>
             </tr>
           @endforelse
@@ -543,319 +615,350 @@
     }
   </style>
 
-  {{-- SCRIPT FINALISASI + BOBOT --}}
- <script>
-  function openModalFinalisasi() {
-    const modal = document.getElementById('modalFinalisasi');
+  {{-- SCRIPT FINALISASI + IMPORT EXCEL + BOBOT --}}
+  <script>
+    function openModalFinalisasi() {
+      const modal = document.getElementById('modalFinalisasi');
 
-    if (!modal) {
-      return;
-    }
-
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    document.body.classList.add('overflow-hidden');
-  }
-
-  function closeModalFinalisasi() {
-    const modal = document.getElementById('modalFinalisasi');
-
-    if (!modal) {
-      return;
-    }
-
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    document.body.classList.remove('overflow-hidden');
-  }
-
-  function submitFinalisasi() {
-    const form = document.getElementById('form-finalisasi');
-
-    if (form) {
-      form.submit();
-    }
-  }
-
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      closeModalFinalisasi();
-    }
-  });
-
-  document.getElementById('modalFinalisasi')?.addEventListener('click', function(e) {
-    if (e.target === this) {
-      closeModalFinalisasi();
-    }
-  });
-
-  document.addEventListener('DOMContentLoaded', function () {
-    const formNilai = document.getElementById('formNilai');
-    const jenisSelects = document.querySelectorAll('.jenis-tp');
-    const bobotPraktikInput = document.getElementById('bobotPraktik');
-    const bobotTeoriInput = document.getElementById('bobotTeori');
-    const totalBobotBox = document.getElementById('totalBobotBox');
-    const bobotWarning = document.getElementById('bobotWarning');
-    const btnSimpan = document.getElementById('btnSimpanNilai');
-
-    function getStorageKey() {
-      if (!formNilai) {
-        return null;
-      }
-
-      const jadwalId = formNilai.dataset.jadwalId || '';
-      const rombelId = formNilai.dataset.rombelId || '';
-      const mapelId = formNilai.dataset.mapelId || '';
-      const komponen = formNilai.dataset.komponen || '';
-      const semester = formNilai.dataset.semester || '';
-      const tahunAjaranId = formNilai.dataset.tahunAjaranId || '';
-
-      return `sia_penilaian_bobot_${tahunAjaranId}_${semester}_${jadwalId}_${rombelId}_${mapelId}_${komponen}`;
-    }
-
-    function toNumber(value) {
-      const parsed = parseFloat(value);
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-
-    function normalizeBobot(value) {
-      let number = toNumber(value);
-
-      if (number < 0) {
-        number = 0;
-      }
-
-      if (number > 100) {
-        number = 100;
-      }
-
-      return number;
-    }
-
-    function cleanBobotDisplay(value) {
-      if (!Number.isFinite(value)) {
-        return '';
-      }
-
-      return String(parseFloat(value.toFixed(2)));
-    }
-
-    function saveKonfigurasiBobot() {
-      const storageKey = getStorageKey();
-
-      if (!storageKey) {
+      if (!modal) {
         return;
       }
 
-      const payload = {
-        jenis_tp1: document.querySelector('[name="jenis_tp1"]')?.value || 'praktik',
-        jenis_tp2: document.querySelector('[name="jenis_tp2"]')?.value || 'praktik',
-        jenis_tp3: document.querySelector('[name="jenis_tp3"]')?.value || 'teori',
-        jenis_tp4: document.querySelector('[name="jenis_tp4"]')?.value || 'teori',
-        bobot_praktik: bobotPraktikInput?.value || '',
-        bobot_teori: bobotTeoriInput?.value || '',
-      };
-
-      localStorage.setItem(storageKey, JSON.stringify(payload));
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.body.classList.add('overflow-hidden');
     }
 
-    function loadKonfigurasiBobot() {
-      const storageKey = getStorageKey();
+    function closeModalFinalisasi() {
+      const modal = document.getElementById('modalFinalisasi');
 
-      if (!storageKey) {
+      if (!modal) {
         return;
       }
 
-      const saved = localStorage.getItem(storageKey);
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.classList.remove('overflow-hidden');
+    }
 
-      if (!saved) {
+    function submitFinalisasi() {
+      const form = document.getElementById('form-finalisasi');
+
+      if (form) {
+        form.submit();
+      }
+    }
+
+    function openModalImportExcel() {
+      const modal = document.getElementById('modalImportExcel');
+
+      if (!modal) {
         return;
       }
 
-      try {
-        const payload = JSON.parse(saved);
-
-        const jenisTp1 = document.querySelector('[name="jenis_tp1"]');
-        const jenisTp2 = document.querySelector('[name="jenis_tp2"]');
-        const jenisTp3 = document.querySelector('[name="jenis_tp3"]');
-        const jenisTp4 = document.querySelector('[name="jenis_tp4"]');
-
-        if (jenisTp1 && payload.jenis_tp1) {
-          jenisTp1.value = payload.jenis_tp1;
-        }
-
-        if (jenisTp2 && payload.jenis_tp2) {
-          jenisTp2.value = payload.jenis_tp2;
-        }
-
-        if (jenisTp3 && payload.jenis_tp3) {
-          jenisTp3.value = payload.jenis_tp3;
-        }
-
-        if (jenisTp4 && payload.jenis_tp4) {
-          jenisTp4.value = payload.jenis_tp4;
-        }
-
-        if (bobotPraktikInput && payload.bobot_praktik !== undefined) {
-          bobotPraktikInput.value = payload.bobot_praktik;
-        }
-
-        if (bobotTeoriInput && payload.bobot_teori !== undefined) {
-          bobotTeoriInput.value = payload.bobot_teori;
-        }
-      } catch (error) {
-        localStorage.removeItem(storageKey);
-      }
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.body.classList.add('overflow-hidden');
     }
 
-    function autoLengkapiBobot(activeId) {
-      if (!bobotPraktikInput || !bobotTeoriInput) {
+    function closeModalImportExcel() {
+      const modal = document.getElementById('modalImportExcel');
+
+      if (!modal) {
         return;
       }
 
-      if (activeId === 'bobotPraktik') {
-        const praktikRaw = bobotPraktikInput.value;
-
-        if (praktikRaw === '') {
-          bobotTeoriInput.value = '';
-          saveKonfigurasiBobot();
-          updateBobotState();
-          return;
-        }
-
-        const praktik = normalizeBobot(praktikRaw);
-        const teori = 100 - praktik;
-
-        bobotPraktikInput.value = cleanBobotDisplay(praktik);
-        bobotTeoriInput.value = cleanBobotDisplay(teori);
-      }
-
-      if (activeId === 'bobotTeori') {
-        const teoriRaw = bobotTeoriInput.value;
-
-        if (teoriRaw === '') {
-          bobotPraktikInput.value = '';
-          saveKonfigurasiBobot();
-          updateBobotState();
-          return;
-        }
-
-        const teori = normalizeBobot(teoriRaw);
-        const praktik = 100 - teori;
-
-        bobotTeoriInput.value = cleanBobotDisplay(teori);
-        bobotPraktikInput.value = cleanBobotDisplay(praktik);
-      }
-
-      saveKonfigurasiBobot();
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.classList.remove('overflow-hidden');
     }
 
-    function getJenisMap() {
-      const map = {};
-
-      jenisSelects.forEach(function (select) {
-        map[select.dataset.tp] = select.value;
-      });
-
-      return map;
-    }
-
-    function updateTpLabels() {
-      const jenisMap = getJenisMap();
-
-      document.querySelectorAll('.tp-label').forEach(function (label) {
-        const tp = label.dataset.labelTp;
-        const jenis = jenisMap[tp] || '-';
-
-        label.textContent = jenis.charAt(0).toUpperCase() + jenis.slice(1);
-      });
-    }
-
-    function updateBobotState() {
-      const praktikRaw = bobotPraktikInput?.value ?? '';
-      const teoriRaw = bobotTeoriInput?.value ?? '';
-
-      const praktikKosong = praktikRaw === '';
-      const teoriKosong = teoriRaw === '';
-
-      const praktik = toNumber(praktikRaw);
-      const teori = toNumber(teoriRaw);
-      const total = praktik + teori;
-
-      const sudahDiisi = !praktikKosong || !teoriKosong;
-      const valid = !praktikKosong && !teoriKosong && Math.abs(total - 100) <= 0.01;
-
-      if (totalBobotBox) {
-        totalBobotBox.textContent = sudahDiisi
-          ? total.toFixed(2).replace(/\.00$/, '') + '%'
-          : '—';
-
-        totalBobotBox.classList.remove(
-          'border-green-200',
-          'bg-green-50',
-          'text-green-700',
-          'border-red-200',
-          'bg-red-50',
-          'text-red-700',
-          'border-gray-200',
-          'bg-gray-50',
-          'text-gray-500'
-        );
-
-        if (!sudahDiisi) {
-          totalBobotBox.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-500');
-        } else if (valid) {
-          totalBobotBox.classList.add('border-green-200', 'bg-green-50', 'text-green-700');
-        } else {
-          totalBobotBox.classList.add('border-red-200', 'bg-red-50', 'text-red-700');
-        }
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeModalFinalisasi();
+        closeModalImportExcel();
       }
-
-      if (bobotWarning) {
-        bobotWarning.classList.toggle('hidden', !sudahDiisi || valid);
-      }
-
-      if (btnSimpan) {
-        btnSimpan.disabled = !valid;
-      }
-
-      return valid;
-    }
-
-    function updateAllState() {
-      updateTpLabels();
-      updateBobotState();
-    }
-
-    loadKonfigurasiBobot();
-    updateAllState();
-
-    jenisSelects.forEach(function (select) {
-      select.addEventListener('change', function () {
-        saveKonfigurasiBobot();
-        updateAllState();
-      });
     });
 
-    if (bobotPraktikInput) {
-      bobotPraktikInput.addEventListener('input', function () {
-        autoLengkapiBobot('bobotPraktik');
-        updateAllState();
-      });
-    }
+    document.getElementById('modalFinalisasi')?.addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeModalFinalisasi();
+      }
+    });
 
-    if (bobotTeoriInput) {
-      bobotTeoriInput.addEventListener('input', function () {
-        autoLengkapiBobot('bobotTeori');
-        updateAllState();
-      });
-    }
+    document.getElementById('modalImportExcel')?.addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeModalImportExcel();
+      }
+    });
 
-    if (formNilai) {
-      formNilai.addEventListener('submit', function () {
+    document.addEventListener('DOMContentLoaded', function () {
+      const formNilai = document.getElementById('formNilai');
+      const jenisSelects = document.querySelectorAll('.jenis-tp');
+      const bobotPraktikInput = document.getElementById('bobotPraktik');
+      const bobotTeoriInput = document.getElementById('bobotTeori');
+      const totalBobotBox = document.getElementById('totalBobotBox');
+      const bobotWarning = document.getElementById('bobotWarning');
+      const btnSimpan = document.getElementById('btnSimpanNilai');
+
+      function getStorageKey() {
+        if (!formNilai) {
+          return null;
+        }
+
+        const jadwalId = formNilai.dataset.jadwalId || '';
+        const rombelId = formNilai.dataset.rombelId || '';
+        const mapelId = formNilai.dataset.mapelId || '';
+        const komponen = formNilai.dataset.komponen || '';
+        const semester = formNilai.dataset.semester || '';
+        const tahunAjaranId = formNilai.dataset.tahunAjaranId || '';
+
+        return `sia_penilaian_bobot_${tahunAjaranId}_${semester}_${jadwalId}_${rombelId}_${mapelId}_${komponen}`;
+      }
+
+      function toNumber(value) {
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function normalizeBobot(value) {
+        let number = toNumber(value);
+
+        if (number < 0) {
+          number = 0;
+        }
+
+        if (number > 100) {
+          number = 100;
+        }
+
+        return number;
+      }
+
+      function cleanBobotDisplay(value) {
+        if (!Number.isFinite(value)) {
+          return '';
+        }
+
+        return String(parseFloat(value.toFixed(2)));
+      }
+
+      function saveKonfigurasiBobot() {
+        const storageKey = getStorageKey();
+
+        if (!storageKey) {
+          return;
+        }
+
+        const payload = {
+          jenis_tp1: document.querySelector('[name="jenis_tp1"]')?.value || 'praktik',
+          jenis_tp2: document.querySelector('[name="jenis_tp2"]')?.value || 'praktik',
+          jenis_tp3: document.querySelector('[name="jenis_tp3"]')?.value || 'teori',
+          jenis_tp4: document.querySelector('[name="jenis_tp4"]')?.value || 'teori',
+          bobot_praktik: bobotPraktikInput?.value || '',
+          bobot_teori: bobotTeoriInput?.value || '',
+        };
+
+        localStorage.setItem(storageKey, JSON.stringify(payload));
+      }
+
+      function loadKonfigurasiBobot() {
+        const storageKey = getStorageKey();
+
+        if (!storageKey) {
+          return;
+        }
+
+        const saved = localStorage.getItem(storageKey);
+
+        if (!saved) {
+          return;
+        }
+
+        try {
+          const payload = JSON.parse(saved);
+
+          const jenisTp1 = document.querySelector('[name="jenis_tp1"]');
+          const jenisTp2 = document.querySelector('[name="jenis_tp2"]');
+          const jenisTp3 = document.querySelector('[name="jenis_tp3"]');
+          const jenisTp4 = document.querySelector('[name="jenis_tp4"]');
+
+          if (jenisTp1 && payload.jenis_tp1) {
+            jenisTp1.value = payload.jenis_tp1;
+          }
+
+          if (jenisTp2 && payload.jenis_tp2) {
+            jenisTp2.value = payload.jenis_tp2;
+          }
+
+          if (jenisTp3 && payload.jenis_tp3) {
+            jenisTp3.value = payload.jenis_tp3;
+          }
+
+          if (jenisTp4 && payload.jenis_tp4) {
+            jenisTp4.value = payload.jenis_tp4;
+          }
+
+          if (bobotPraktikInput && payload.bobot_praktik !== undefined) {
+            bobotPraktikInput.value = payload.bobot_praktik;
+          }
+
+          if (bobotTeoriInput && payload.bobot_teori !== undefined) {
+            bobotTeoriInput.value = payload.bobot_teori;
+          }
+        } catch (error) {
+          localStorage.removeItem(storageKey);
+        }
+      }
+
+      function autoLengkapiBobot(activeId) {
+        if (!bobotPraktikInput || !bobotTeoriInput) {
+          return;
+        }
+
+        if (activeId === 'bobotPraktik') {
+          const praktikRaw = bobotPraktikInput.value;
+
+          if (praktikRaw === '') {
+            bobotTeoriInput.value = '';
+            saveKonfigurasiBobot();
+            updateBobotState();
+            return;
+          }
+
+          const praktik = normalizeBobot(praktikRaw);
+          const teori = 100 - praktik;
+
+          bobotPraktikInput.value = cleanBobotDisplay(praktik);
+          bobotTeoriInput.value = cleanBobotDisplay(teori);
+        }
+
+        if (activeId === 'bobotTeori') {
+          const teoriRaw = bobotTeoriInput.value;
+
+          if (teoriRaw === '') {
+            bobotPraktikInput.value = '';
+            saveKonfigurasiBobot();
+            updateBobotState();
+            return;
+          }
+
+          const teori = normalizeBobot(teoriRaw);
+          const praktik = 100 - teori;
+
+          bobotTeoriInput.value = cleanBobotDisplay(teori);
+          bobotPraktikInput.value = cleanBobotDisplay(praktik);
+        }
+
         saveKonfigurasiBobot();
+      }
+
+      function getJenisMap() {
+        const map = {};
+
+        jenisSelects.forEach(function (select) {
+          map[select.dataset.tp] = select.value;
+        });
+
+        return map;
+      }
+
+      function updateTpLabels() {
+        const jenisMap = getJenisMap();
+
+        document.querySelectorAll('.tp-label').forEach(function (label) {
+          const tp = label.dataset.labelTp;
+          const jenis = jenisMap[tp] || '-';
+
+          label.textContent = jenis.charAt(0).toUpperCase() + jenis.slice(1);
+        });
+      }
+
+      function updateBobotState() {
+        const praktikRaw = bobotPraktikInput?.value ?? '';
+        const teoriRaw = bobotTeoriInput?.value ?? '';
+
+        const praktikKosong = praktikRaw === '';
+        const teoriKosong = teoriRaw === '';
+
+        const praktik = toNumber(praktikRaw);
+        const teori = toNumber(teoriRaw);
+        const total = praktik + teori;
+
+        const sudahDiisi = !praktikKosong || !teoriKosong;
+        const valid = !praktikKosong && !teoriKosong && Math.abs(total - 100) <= 0.01;
+
+        if (totalBobotBox) {
+          totalBobotBox.textContent = sudahDiisi
+            ? total.toFixed(2).replace(/\.00$/, '') + '%'
+            : '—';
+
+          totalBobotBox.classList.remove(
+            'border-green-200',
+            'bg-green-50',
+            'text-green-700',
+            'border-red-200',
+            'bg-red-50',
+            'text-red-700',
+            'border-gray-200',
+            'bg-gray-50',
+            'text-gray-500'
+          );
+
+          if (!sudahDiisi) {
+            totalBobotBox.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-500');
+          } else if (valid) {
+            totalBobotBox.classList.add('border-green-200', 'bg-green-50', 'text-green-700');
+          } else {
+            totalBobotBox.classList.add('border-red-200', 'bg-red-50', 'text-red-700');
+          }
+        }
+
+        if (bobotWarning) {
+          bobotWarning.classList.toggle('hidden', !sudahDiisi || valid);
+        }
+
+        if (btnSimpan) {
+          btnSimpan.disabled = !valid;
+        }
+
+        return valid;
+      }
+
+      function updateAllState() {
+        updateTpLabels();
+        updateBobotState();
+      }
+
+      loadKonfigurasiBobot();
+      updateAllState();
+
+      jenisSelects.forEach(function (select) {
+        select.addEventListener('change', function () {
+          saveKonfigurasiBobot();
+          updateAllState();
+        });
       });
-    }
-  });
-</script>
+
+      if (bobotPraktikInput) {
+        bobotPraktikInput.addEventListener('input', function () {
+          autoLengkapiBobot('bobotPraktik');
+          updateAllState();
+        });
+      }
+
+      if (bobotTeoriInput) {
+        bobotTeoriInput.addEventListener('input', function () {
+          autoLengkapiBobot('bobotTeori');
+          updateAllState();
+        });
+      }
+
+      if (formNilai) {
+        formNilai.addEventListener('submit', function () {
+          saveKonfigurasiBobot();
+        });
+      }
+    });
+  </script>
 @endsection
