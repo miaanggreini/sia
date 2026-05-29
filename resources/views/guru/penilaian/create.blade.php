@@ -38,8 +38,8 @@
     | Guru tetap bisa mengubah bobot praktik/teori sesuai kebutuhan.
     |--------------------------------------------------------------------------
     */
-    $oldBobotPraktik = old('bobot_praktik', request('bobot_praktik', 50));
-    $oldBobotTeori = old('bobot_teori', request('bobot_teori', 50));
+    $oldBobotPraktik = old('bobot_praktik', '');
+    $oldBobotTeori = old('bobot_teori', '');
 
     $lmList = ['LM1', 'LM2', 'LM3', 'LM4'];
 
@@ -386,6 +386,7 @@
             <th class="px-4 py-3 text-left">LM3</th>
             <th class="px-4 py-3 text-left">LM4</th>
             <th class="px-4 py-3 text-left">Nilai Akhir</th>
+            <th class="px-4 py-3 text-left">KKM</th>
             <th class="px-4 py-3 text-left">Status</th>
           </tr>
         </thead>
@@ -413,6 +414,12 @@
                 {{ $row?->nilai_akhir !== null ? number_format($row->nilai_akhir, 2) : '0.00' }}
               </td>
 
+              <td class="px-4 py-3 font-medium text-gray-700">
+                {{ isset($kkm) && $kkm !== null ? number_format((float) $kkm, 0) : '-' }}
+              </td>
+
+              <td class="px-4 py-3">
+
               <td class="px-4 py-3">
                 @if(($row?->status ?? null) === 'tuntas')
                   <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
@@ -431,8 +438,7 @@
             </tr>
           @empty
             <tr>
-              <td colspan="8" class="px-4 py-6 text-center text-gray-500">
-                Belum ada data nilai.
+            <td colspan="9" class="px-4 py-6 text-center text-gray-500">                Belum ada data nilai.
               </td>
             </tr>
           @endforelse
@@ -538,322 +544,318 @@
   </style>
 
   {{-- SCRIPT FINALISASI + BOBOT --}}
-  <script>
-    function openModalFinalisasi() {
-      const modal = document.getElementById('modalFinalisasi');
+ <script>
+  function openModalFinalisasi() {
+    const modal = document.getElementById('modalFinalisasi');
 
-      if (!modal) {
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('overflow-hidden');
+  }
+
+  function closeModalFinalisasi() {
+    const modal = document.getElementById('modalFinalisasi');
+
+    if (!modal) {
+      return;
+    }
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.classList.remove('overflow-hidden');
+  }
+
+  function submitFinalisasi() {
+    const form = document.getElementById('form-finalisasi');
+
+    if (form) {
+      form.submit();
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeModalFinalisasi();
+    }
+  });
+
+  document.getElementById('modalFinalisasi')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeModalFinalisasi();
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const formNilai = document.getElementById('formNilai');
+    const jenisSelects = document.querySelectorAll('.jenis-tp');
+    const bobotPraktikInput = document.getElementById('bobotPraktik');
+    const bobotTeoriInput = document.getElementById('bobotTeori');
+    const totalBobotBox = document.getElementById('totalBobotBox');
+    const bobotWarning = document.getElementById('bobotWarning');
+    const btnSimpan = document.getElementById('btnSimpanNilai');
+
+    function getStorageKey() {
+      if (!formNilai) {
+        return null;
+      }
+
+      const jadwalId = formNilai.dataset.jadwalId || '';
+      const rombelId = formNilai.dataset.rombelId || '';
+      const mapelId = formNilai.dataset.mapelId || '';
+      const komponen = formNilai.dataset.komponen || '';
+      const semester = formNilai.dataset.semester || '';
+      const tahunAjaranId = formNilai.dataset.tahunAjaranId || '';
+
+      return `sia_penilaian_bobot_${tahunAjaranId}_${semester}_${jadwalId}_${rombelId}_${mapelId}_${komponen}`;
+    }
+
+    function toNumber(value) {
+      const parsed = parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function normalizeBobot(value) {
+      let number = toNumber(value);
+
+      if (number < 0) {
+        number = 0;
+      }
+
+      if (number > 100) {
+        number = 100;
+      }
+
+      return number;
+    }
+
+    function cleanBobotDisplay(value) {
+      if (!Number.isFinite(value)) {
+        return '';
+      }
+
+      return String(parseFloat(value.toFixed(2)));
+    }
+
+    function saveKonfigurasiBobot() {
+      const storageKey = getStorageKey();
+
+      if (!storageKey) {
         return;
       }
 
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      document.body.classList.add('overflow-hidden');
+      const payload = {
+        jenis_tp1: document.querySelector('[name="jenis_tp1"]')?.value || 'praktik',
+        jenis_tp2: document.querySelector('[name="jenis_tp2"]')?.value || 'praktik',
+        jenis_tp3: document.querySelector('[name="jenis_tp3"]')?.value || 'teori',
+        jenis_tp4: document.querySelector('[name="jenis_tp4"]')?.value || 'teori',
+        bobot_praktik: bobotPraktikInput?.value || '',
+        bobot_teori: bobotTeoriInput?.value || '',
+      };
+
+      localStorage.setItem(storageKey, JSON.stringify(payload));
     }
 
-    function closeModalFinalisasi() {
-      const modal = document.getElementById('modalFinalisasi');
+    function loadKonfigurasiBobot() {
+      const storageKey = getStorageKey();
 
-      if (!modal) {
+      if (!storageKey) {
         return;
       }
 
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      document.body.classList.remove('overflow-hidden');
-    }
+      const saved = localStorage.getItem(storageKey);
 
-    function submitFinalisasi() {
-      const form = document.getElementById('form-finalisasi');
+      if (!saved) {
+        return;
+      }
 
-      if (form) {
-        form.submit();
+      try {
+        const payload = JSON.parse(saved);
+
+        const jenisTp1 = document.querySelector('[name="jenis_tp1"]');
+        const jenisTp2 = document.querySelector('[name="jenis_tp2"]');
+        const jenisTp3 = document.querySelector('[name="jenis_tp3"]');
+        const jenisTp4 = document.querySelector('[name="jenis_tp4"]');
+
+        if (jenisTp1 && payload.jenis_tp1) {
+          jenisTp1.value = payload.jenis_tp1;
+        }
+
+        if (jenisTp2 && payload.jenis_tp2) {
+          jenisTp2.value = payload.jenis_tp2;
+        }
+
+        if (jenisTp3 && payload.jenis_tp3) {
+          jenisTp3.value = payload.jenis_tp3;
+        }
+
+        if (jenisTp4 && payload.jenis_tp4) {
+          jenisTp4.value = payload.jenis_tp4;
+        }
+
+        if (bobotPraktikInput && payload.bobot_praktik !== undefined) {
+          bobotPraktikInput.value = payload.bobot_praktik;
+        }
+
+        if (bobotTeoriInput && payload.bobot_teori !== undefined) {
+          bobotTeoriInput.value = payload.bobot_teori;
+        }
+      } catch (error) {
+        localStorage.removeItem(storageKey);
       }
     }
 
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        closeModalFinalisasi();
-      }
-    });
-
-    document.getElementById('modalFinalisasi')?.addEventListener('click', function(e) {
-      if (e.target === this) {
-        closeModalFinalisasi();
-      }
-    });
-
-    document.addEventListener('DOMContentLoaded', function () {
-      const formNilai = document.getElementById('formNilai');
-      const jenisSelects = document.querySelectorAll('.jenis-tp');
-      const bobotPraktikInput = document.getElementById('bobotPraktik');
-      const bobotTeoriInput = document.getElementById('bobotTeori');
-      const totalBobotBox = document.getElementById('totalBobotBox');
-      const bobotWarning = document.getElementById('bobotWarning');
-      const btnSimpan = document.getElementById('btnSimpanNilai');
-
-      function getStorageKey() {
-        if (!formNilai) {
-          return null;
-        }
-
-        const jadwalId = formNilai.dataset.jadwalId || '';
-        const rombelId = formNilai.dataset.rombelId || '';
-        const mapelId = formNilai.dataset.mapelId || '';
-        const komponen = formNilai.dataset.komponen || '';
-        const semester = formNilai.dataset.semester || '';
-        const tahunAjaranId = formNilai.dataset.tahunAjaranId || '';
-
-        return `sia_penilaian_bobot_${tahunAjaranId}_${semester}_${jadwalId}_${rombelId}_${mapelId}_${komponen}`;
+    function autoLengkapiBobot(activeId) {
+      if (!bobotPraktikInput || !bobotTeoriInput) {
+        return;
       }
 
-      function toNumber(value) {
-        const parsed = parseFloat(value);
-        return Number.isFinite(parsed) ? parsed : 0;
-      }
+      if (activeId === 'bobotPraktik') {
+        const praktikRaw = bobotPraktikInput.value;
 
-      function normalizeBobot(value) {
-        let number = toNumber(value);
-
-        if (number < 0) {
-          number = 0;
-        }
-
-        if (number > 100) {
-          number = 100;
-        }
-
-        return number;
-      }
-
-      function cleanBobotDisplay(value) {
-        if (!Number.isFinite(value)) {
-          return '';
-        }
-
-        return String(parseFloat(value.toFixed(2)));
-      }
-
-      function saveKonfigurasiBobot() {
-        const storageKey = getStorageKey();
-
-        if (!storageKey) {
+        if (praktikRaw === '') {
+          bobotTeoriInput.value = '';
+          saveKonfigurasiBobot();
+          updateBobotState();
           return;
         }
 
-        const payload = {
-          jenis_tp1: document.querySelector('[name="jenis_tp1"]')?.value || 'praktik',
-          jenis_tp2: document.querySelector('[name="jenis_tp2"]')?.value || 'praktik',
-          jenis_tp3: document.querySelector('[name="jenis_tp3"]')?.value || 'teori',
-          jenis_tp4: document.querySelector('[name="jenis_tp4"]')?.value || 'teori',
-          bobot_praktik: bobotPraktikInput?.value || '',
-          bobot_teori: bobotTeoriInput?.value || '',
-        };
+        const praktik = normalizeBobot(praktikRaw);
+        const teori = 100 - praktik;
 
-        localStorage.setItem(storageKey, JSON.stringify(payload));
+        bobotPraktikInput.value = cleanBobotDisplay(praktik);
+        bobotTeoriInput.value = cleanBobotDisplay(teori);
       }
 
-      function loadKonfigurasiBobot() {
-        const storageKey = getStorageKey();
+      if (activeId === 'bobotTeori') {
+        const teoriRaw = bobotTeoriInput.value;
 
-        if (!storageKey) {
+        if (teoriRaw === '') {
+          bobotPraktikInput.value = '';
+          saveKonfigurasiBobot();
+          updateBobotState();
           return;
         }
 
-        const saved = localStorage.getItem(storageKey);
+        const teori = normalizeBobot(teoriRaw);
+        const praktik = 100 - teori;
 
-        if (!saved) {
-          return;
-        }
-
-        try {
-          const payload = JSON.parse(saved);
-
-          const jenisTp1 = document.querySelector('[name="jenis_tp1"]');
-          const jenisTp2 = document.querySelector('[name="jenis_tp2"]');
-          const jenisTp3 = document.querySelector('[name="jenis_tp3"]');
-          const jenisTp4 = document.querySelector('[name="jenis_tp4"]');
-
-          if (jenisTp1 && payload.jenis_tp1) {
-            jenisTp1.value = payload.jenis_tp1;
-          }
-
-          if (jenisTp2 && payload.jenis_tp2) {
-            jenisTp2.value = payload.jenis_tp2;
-          }
-
-          if (jenisTp3 && payload.jenis_tp3) {
-            jenisTp3.value = payload.jenis_tp3;
-          }
-
-          if (jenisTp4 && payload.jenis_tp4) {
-            jenisTp4.value = payload.jenis_tp4;
-          }
-
-          /*
-          |--------------------------------------------------------------------------
-          | Jika localStorage pernah menyimpan bobot kosong,
-          | biarkan default dari Blade tetap 50:50.
-          |--------------------------------------------------------------------------
-          */
-          if (bobotPraktikInput && payload.bobot_praktik !== undefined && payload.bobot_praktik !== '') {
-            bobotPraktikInput.value = payload.bobot_praktik;
-          }
-
-          if (bobotTeoriInput && payload.bobot_teori !== undefined && payload.bobot_teori !== '') {
-            bobotTeoriInput.value = payload.bobot_teori;
-          }
-        } catch (error) {
-          localStorage.removeItem(storageKey);
-        }
+        bobotTeoriInput.value = cleanBobotDisplay(teori);
+        bobotPraktikInput.value = cleanBobotDisplay(praktik);
       }
 
-      function autoLengkapiBobot(activeId) {
-        if (!bobotPraktikInput || !bobotTeoriInput) {
-          return;
-        }
+      saveKonfigurasiBobot();
+    }
 
-        if (activeId === 'bobotPraktik') {
-          const praktikRaw = bobotPraktikInput.value;
-
-          if (praktikRaw === '') {
-            bobotTeoriInput.value = '';
-            saveKonfigurasiBobot();
-            return;
-          }
-
-          const praktik = normalizeBobot(praktikRaw);
-          const teori = 100 - praktik;
-
-          bobotPraktikInput.value = cleanBobotDisplay(praktik);
-          bobotTeoriInput.value = cleanBobotDisplay(teori);
-        }
-
-        if (activeId === 'bobotTeori') {
-          const teoriRaw = bobotTeoriInput.value;
-
-          if (teoriRaw === '') {
-            bobotPraktikInput.value = '';
-            saveKonfigurasiBobot();
-            return;
-          }
-
-          const teori = normalizeBobot(teoriRaw);
-          const praktik = 100 - teori;
-
-          bobotTeoriInput.value = cleanBobotDisplay(teori);
-          bobotPraktikInput.value = cleanBobotDisplay(praktik);
-        }
-
-        saveKonfigurasiBobot();
-      }
-
-      function getJenisMap() {
-        const map = {};
-
-        jenisSelects.forEach(function (select) {
-          map[select.dataset.tp] = select.value;
-        });
-
-        return map;
-      }
-
-      function updateTpLabels() {
-        const jenisMap = getJenisMap();
-
-        document.querySelectorAll('.tp-label').forEach(function (label) {
-          const tp = label.dataset.labelTp;
-          const jenis = jenisMap[tp] || '-';
-
-          label.textContent = jenis.charAt(0).toUpperCase() + jenis.slice(1);
-        });
-      }
-
-      function updateBobotState() {
-        const praktikRaw = bobotPraktikInput?.value ?? '';
-        const teoriRaw = bobotTeoriInput?.value ?? '';
-
-        const praktikKosong = praktikRaw === '';
-        const teoriKosong = teoriRaw === '';
-
-        const praktik = toNumber(praktikRaw);
-        const teori = toNumber(teoriRaw);
-        const total = praktik + teori;
-
-        const sudahDiisi = !praktikKosong || !teoriKosong;
-        const valid = !praktikKosong && !teoriKosong && Math.abs(total - 100) <= 0.01;
-
-        if (totalBobotBox) {
-          totalBobotBox.textContent = sudahDiisi
-            ? total.toFixed(2).replace(/\.00$/, '') + '%'
-            : '—';
-
-          totalBobotBox.classList.remove(
-            'border-green-200',
-            'bg-green-50',
-            'text-green-700',
-            'border-red-200',
-            'bg-red-50',
-            'text-red-700',
-            'border-gray-200',
-            'bg-gray-50',
-            'text-gray-500'
-          );
-
-          if (!sudahDiisi) {
-            totalBobotBox.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-500');
-          } else if (valid) {
-            totalBobotBox.classList.add('border-green-200', 'bg-green-50', 'text-green-700');
-          } else {
-            totalBobotBox.classList.add('border-red-200', 'bg-red-50', 'text-red-700');
-          }
-        }
-
-        if (bobotWarning) {
-          bobotWarning.classList.toggle('hidden', !sudahDiisi || valid);
-        }
-
-        if (btnSimpan) {
-          btnSimpan.disabled = !valid;
-        }
-
-        return valid;
-      }
-
-      function updateAllState() {
-        updateTpLabels();
-        updateBobotState();
-      }
-
-      loadKonfigurasiBobot();
-      updateAllState();
+    function getJenisMap() {
+      const map = {};
 
       jenisSelects.forEach(function (select) {
-        select.addEventListener('change', function () {
-          saveKonfigurasiBobot();
-          updateAllState();
-        });
+        map[select.dataset.tp] = select.value;
       });
 
-      if (bobotPraktikInput) {
-        bobotPraktikInput.addEventListener('input', function () {
-          autoLengkapiBobot('bobotPraktik');
-          updateAllState();
-        });
+      return map;
+    }
+
+    function updateTpLabels() {
+      const jenisMap = getJenisMap();
+
+      document.querySelectorAll('.tp-label').forEach(function (label) {
+        const tp = label.dataset.labelTp;
+        const jenis = jenisMap[tp] || '-';
+
+        label.textContent = jenis.charAt(0).toUpperCase() + jenis.slice(1);
+      });
+    }
+
+    function updateBobotState() {
+      const praktikRaw = bobotPraktikInput?.value ?? '';
+      const teoriRaw = bobotTeoriInput?.value ?? '';
+
+      const praktikKosong = praktikRaw === '';
+      const teoriKosong = teoriRaw === '';
+
+      const praktik = toNumber(praktikRaw);
+      const teori = toNumber(teoriRaw);
+      const total = praktik + teori;
+
+      const sudahDiisi = !praktikKosong || !teoriKosong;
+      const valid = !praktikKosong && !teoriKosong && Math.abs(total - 100) <= 0.01;
+
+      if (totalBobotBox) {
+        totalBobotBox.textContent = sudahDiisi
+          ? total.toFixed(2).replace(/\.00$/, '') + '%'
+          : '—';
+
+        totalBobotBox.classList.remove(
+          'border-green-200',
+          'bg-green-50',
+          'text-green-700',
+          'border-red-200',
+          'bg-red-50',
+          'text-red-700',
+          'border-gray-200',
+          'bg-gray-50',
+          'text-gray-500'
+        );
+
+        if (!sudahDiisi) {
+          totalBobotBox.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-500');
+        } else if (valid) {
+          totalBobotBox.classList.add('border-green-200', 'bg-green-50', 'text-green-700');
+        } else {
+          totalBobotBox.classList.add('border-red-200', 'bg-red-50', 'text-red-700');
+        }
       }
 
-      if (bobotTeoriInput) {
-        bobotTeoriInput.addEventListener('input', function () {
-          autoLengkapiBobot('bobotTeori');
-          updateAllState();
-        });
+      if (bobotWarning) {
+        bobotWarning.classList.toggle('hidden', !sudahDiisi || valid);
       }
 
-      if (formNilai) {
-        formNilai.addEventListener('submit', function () {
-          saveKonfigurasiBobot();
-        });
+      if (btnSimpan) {
+        btnSimpan.disabled = !valid;
       }
+
+      return valid;
+    }
+
+    function updateAllState() {
+      updateTpLabels();
+      updateBobotState();
+    }
+
+    loadKonfigurasiBobot();
+    updateAllState();
+
+    jenisSelects.forEach(function (select) {
+      select.addEventListener('change', function () {
+        saveKonfigurasiBobot();
+        updateAllState();
+      });
     });
-  </script>
+
+    if (bobotPraktikInput) {
+      bobotPraktikInput.addEventListener('input', function () {
+        autoLengkapiBobot('bobotPraktik');
+        updateAllState();
+      });
+    }
+
+    if (bobotTeoriInput) {
+      bobotTeoriInput.addEventListener('input', function () {
+        autoLengkapiBobot('bobotTeori');
+        updateAllState();
+      });
+    }
+
+    if (formNilai) {
+      formNilai.addEventListener('submit', function () {
+        saveKonfigurasiBobot();
+      });
+    }
+  });
+</script>
 @endsection
