@@ -13,7 +13,9 @@
                 ?? optional($jadwal->rombel)->nama
                 ?? '-';
 
+    $statusInfo = $statusInfo ?? ['status' => 'draft'];
     $isFinal = ($statusInfo['status'] ?? 'draft') === 'final';
+    $readOnly = $readOnly ?? $isFinal;
 
     $prefixMap = [
       'LM1' => 'lm1',
@@ -22,6 +24,7 @@
       'LM4' => 'lm4',
     ];
 
+    $komponen = $komponen ?? 'LM1';
     $activePrefix = $prefixMap[$komponen] ?? 'lm1';
 
     $oldJenisTp1 = old('jenis_tp1', request('jenis_tp1', 'praktik'));
@@ -29,8 +32,14 @@
     $oldJenisTp3 = old('jenis_tp3', request('jenis_tp3', 'teori'));
     $oldJenisTp4 = old('jenis_tp4', request('jenis_tp4', 'teori'));
 
-    $oldBobotPraktik = old('bobot_praktik', request('bobot_praktik'));
-    $oldBobotTeori = old('bobot_teori', request('bobot_teori'));
+    /*
+    |--------------------------------------------------------------------------
+    | Default bobot dibuat 50:50 agar total langsung 100%.
+    | Guru tetap bisa mengubah bobot praktik/teori sesuai kebutuhan.
+    |--------------------------------------------------------------------------
+    */
+    $oldBobotPraktik = old('bobot_praktik', request('bobot_praktik', 50));
+    $oldBobotTeori = old('bobot_teori', request('bobot_teori', 50));
 
     $lmList = ['LM1', 'LM2', 'LM3', 'LM4'];
 
@@ -78,7 +87,7 @@
           </span>
         </div>
 
-        {{-- NAVIGASI LM CUKUP DI SINI SAJA --}}
+        {{-- NAVIGASI LM --}}
         <div class="flex flex-wrap gap-2 mt-4">
           @foreach($lmList as $lm)
             <a href="{{ route('guru.penilaian.create', [
@@ -183,7 +192,6 @@
               </div>
             @endfor
           </div>
-
         </div>
 
         <div class="bg-white border rounded-xl p-4">
@@ -233,7 +241,6 @@
           <div id="bobotWarning" class="hidden mt-3 rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-xs text-red-700">
             Total bobot Praktik dan Teori harus 100%.
           </div>
-
         </div>
       </div>
     </div>
@@ -242,7 +249,7 @@
     <div class="px-4 py-3 border-b">
       <h2 class="font-semibold text-gray-800">Input Nilai {{ $komponen }}</h2>
       <p class="text-xs text-gray-500 mt-1">
-        Isi TP1 sampai TP4. Nilai {{ $komponen }} akan dihitung dan disimpan saat tombol Simpan Nilai diklik.
+        Nilai default 0. TP yang tidak digunakan boleh dibiarkan 0. Nilai {{ $komponen }} akan dihitung dari TP yang benar-benar diisi.
       </p>
     </div>
 
@@ -299,6 +306,7 @@
               @for($tp = 1; $tp <= 4; $tp++)
                 @php
                   $fieldVal = ${"tp{$tp}Val"};
+                  $displayVal = ($fieldVal !== null && $fieldVal !== '') ? $fieldVal : 0;
                 @endphp
 
                 <td class="px-4 py-3">
@@ -310,15 +318,15 @@
                     min="0"
                     max="100"
                     step="0.01"
-                    placeholder="—"
-                    value="{{ $fieldVal }}"
+                    placeholder="0"
+                    value="{{ $displayVal }}"
                     {{ $readOnly ? 'disabled' : '' }}
                   >
                 </td>
               @endfor
 
               <td class="px-4 py-3 font-medium text-indigo-700">
-                {{ $currentLm !== null ? number_format($currentLm, 2) : '—' }}
+                {{ $currentLm !== null ? number_format($currentLm, 2) : '0.00' }}
               </td>
             </tr>
           @empty
@@ -396,13 +404,13 @@
                 <div class="text-xs text-gray-500">{{ $s->nis ?? $s->nisn ?? '' }}</div>
               </td>
 
-              <td class="px-4 py-3">{{ $row?->lm1_nilai !== null ? number_format($row->lm1_nilai, 2) : '—' }}</td>
-              <td class="px-4 py-3">{{ $row?->lm2_nilai !== null ? number_format($row->lm2_nilai, 2) : '—' }}</td>
-              <td class="px-4 py-3">{{ $row?->lm3_nilai !== null ? number_format($row->lm3_nilai, 2) : '—' }}</td>
-              <td class="px-4 py-3">{{ $row?->lm4_nilai !== null ? number_format($row->lm4_nilai, 2) : '—' }}</td>
+              <td class="px-4 py-3">{{ $row?->lm1_nilai !== null ? number_format($row->lm1_nilai, 2) : '0.00' }}</td>
+              <td class="px-4 py-3">{{ $row?->lm2_nilai !== null ? number_format($row->lm2_nilai, 2) : '0.00' }}</td>
+              <td class="px-4 py-3">{{ $row?->lm3_nilai !== null ? number_format($row->lm3_nilai, 2) : '0.00' }}</td>
+              <td class="px-4 py-3">{{ $row?->lm4_nilai !== null ? number_format($row->lm4_nilai, 2) : '0.00' }}</td>
 
               <td class="px-4 py-3 font-semibold">
-                {{ $row?->nilai_akhir !== null ? number_format($row->nilai_akhir, 2) : '—' }}
+                {{ $row?->nilai_akhir !== null ? number_format($row->nilai_akhir, 2) : '0.00' }}
               </td>
 
               <td class="px-4 py-3">
@@ -410,12 +418,14 @@
                   <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
                     Tuntas
                   </span>
-                @elseif(($row?->status ?? null) === 'tidak_tuntas')
+                @elseif(($row?->status ?? null) === 'tidak_tuntas' && $row?->nilai_akhir !== null)
                   <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
                     Tidak Tuntas
                   </span>
                 @else
-                  <span class="text-gray-400">—</span>
+                  <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                    Belum Dinilai
+                  </span>
                 @endif
               </td>
             </tr>
@@ -433,17 +443,17 @@
     <div class="p-4 border-t flex items-center justify-between flex-wrap gap-3">
       <div class="text-sm text-gray-700">
         Kelengkapan:
-        LM1 <span class="{{ $progress['missing']['LM1'] ? 'text-red-600' : 'text-green-600' }}">
-          {{ $progress['total'] - $progress['missing']['LM1'] }}/{{ $progress['total'] }}
+        LM1 <span class="{{ ($progress['missing']['LM1'] ?? 0) ? 'text-red-600' : 'text-green-600' }}">
+          {{ ($progress['total'] ?? 0) - ($progress['missing']['LM1'] ?? 0) }}/{{ $progress['total'] ?? 0 }}
         </span>,
-        LM2 <span class="{{ $progress['missing']['LM2'] ? 'text-red-600' : 'text-green-600' }}">
-          {{ $progress['total'] - $progress['missing']['LM2'] }}/{{ $progress['total'] }}
+        LM2 <span class="{{ ($progress['missing']['LM2'] ?? 0) ? 'text-red-600' : 'text-green-600' }}">
+          {{ ($progress['total'] ?? 0) - ($progress['missing']['LM2'] ?? 0) }}/{{ $progress['total'] ?? 0 }}
         </span>,
-        LM3 <span class="{{ $progress['missing']['LM3'] ? 'text-red-600' : 'text-green-600' }}">
-          {{ $progress['total'] - $progress['missing']['LM3'] }}/{{ $progress['total'] }}
+        LM3 <span class="{{ ($progress['missing']['LM3'] ?? 0) ? 'text-red-600' : 'text-green-600' }}">
+          {{ ($progress['total'] ?? 0) - ($progress['missing']['LM3'] ?? 0) }}/{{ $progress['total'] ?? 0 }}
         </span>,
-        LM4 <span class="{{ $progress['missing']['LM4'] ? 'text-red-600' : 'text-green-600' }}">
-          {{ $progress['total'] - $progress['missing']['LM4'] }}/{{ $progress['total'] }}
+        LM4 <span class="{{ ($progress['missing']['LM4'] ?? 0) ? 'text-red-600' : 'text-green-600' }}">
+          {{ ($progress['total'] ?? 0) - ($progress['missing']['LM4'] ?? 0) }}/{{ $progress['total'] ?? 0 }}
         </span>
       </div>
 
@@ -455,7 +465,7 @@
           <button type="button"
                   onclick="openModalFinalisasi()"
                   class="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  {{ $progress['missing_any'] > 0 ? 'disabled' : '' }}>
+                  {{ ($progress['missing_any'] ?? 0) > 0 ? 'disabled' : '' }}>
             Finalisasi & Kunci Nilai
           </button>
         </form>
@@ -680,11 +690,17 @@
             jenisTp4.value = payload.jenis_tp4;
           }
 
-          if (bobotPraktikInput && payload.bobot_praktik !== undefined) {
+          /*
+          |--------------------------------------------------------------------------
+          | Jika localStorage pernah menyimpan bobot kosong,
+          | biarkan default dari Blade tetap 50:50.
+          |--------------------------------------------------------------------------
+          */
+          if (bobotPraktikInput && payload.bobot_praktik !== undefined && payload.bobot_praktik !== '') {
             bobotPraktikInput.value = payload.bobot_praktik;
           }
 
-          if (bobotTeoriInput && payload.bobot_teori !== undefined) {
+          if (bobotTeoriInput && payload.bobot_teori !== undefined && payload.bobot_teori !== '') {
             bobotTeoriInput.value = payload.bobot_teori;
           }
         } catch (error) {
