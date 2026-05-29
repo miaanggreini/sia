@@ -146,64 +146,78 @@ class NilaiController extends Controller
         return $pdf->download($filename);
     }
 
-    private function baseNilaiQuery(Siswa $siswa)
-    {
-        return DB::table('nilai as n')
-            ->join('jadwal as j', 'j.id', '=', 'n.jadwal_id')
-            ->leftJoin('mata_pelajaran as mp', 'mp.id', '=', 'j.mata_pelajaran_id')
-            ->leftJoin('guru as g', 'g.id', '=', 'j.guru_id')
-            ->leftJoin('rombel as r', 'r.id', '=', 'j.rombel_id')
-            ->leftJoin('tahun_ajaran as ta', 'ta.id', '=', 'n.tahun_ajaran_id')
-            ->select([
-                'n.id',
-                'n.semester',
-                'n.status',
-                'n.nilai_akhir as rata',
-                'n.nilai_akhir',
-                DB::raw('COALESCE(mp.nama_mapel, "-") as mapel'),
-                DB::raw('COALESCE(g.nama, "-") as guru'),
-                DB::raw('COALESCE(r.tingkat, "-") as tingkat'),
-                DB::raw('COALESCE(ta.nama_tahun, "-") as ta'),
-            ])
-            ->where('n.siswa_id', $siswa->id)
-            ->where('n.status_penilaian', 'final')
-            ->where(function ($q) use ($siswa) {
-                $q->where('mp.nama_mapel', 'not like', 'Pendidikan Agama%');
+ private function baseNilaiQuery(Siswa $siswa)
+{
+    return DB::table('nilai as n')
+        ->join('jadwal as j', 'j.id', '=', 'n.jadwal_id')
+        ->leftJoin('mata_pelajaran as mp', 'mp.id', '=', 'j.mata_pelajaran_id')
+        ->leftJoin('guru as g', 'g.id', '=', 'j.guru_id')
+        ->leftJoin('rombel as r', 'r.id', '=', 'j.rombel_id')
+        ->leftJoin('tahun_ajaran as ta', 'ta.id', '=', 'n.tahun_ajaran_id')
+        ->select([
+            'n.id',
+            'n.semester',
+            'n.status',
+            'n.status_penilaian',
+            'n.finalized_at',
+            'n.nilai_akhir as rata',
+            'n.nilai_akhir',
+            DB::raw('COALESCE(mp.nama_mapel, "-") as mapel'),
+            DB::raw('COALESCE(g.nama, "-") as guru'),
+            DB::raw('COALESCE(r.tingkat, "-") as tingkat'),
+            DB::raw('COALESCE(ta.nama_tahun, "-") as ta'),
+        ])
+        ->where('n.siswa_id', $siswa->id)
+        ->where(function ($q) {
+            $q->whereNotNull('n.lm1_nilai')
+              ->orWhereNotNull('n.lm2_nilai')
+              ->orWhereNotNull('n.lm3_nilai')
+              ->orWhereNotNull('n.lm4_nilai')
+              ->orWhereNotNull('n.nilai_akhir');
+        })
+        ->where(function ($q) use ($siswa) {
+            $q->where('mp.nama_mapel', 'not like', 'Pendidikan Agama%');
 
-                if (!empty($siswa->agama)) {
-                    $q->orWhere('mp.nama_mapel', 'like', '%' . $siswa->agama . '%');
-                }
-            })
-            ->orderBy('ta.nama_tahun')
-            ->orderByRaw("FIELD(n.semester, 'Ganjil', 'Genap')")
-            ->orderBy('mp.nama_mapel');
-    }
+            if (!empty($siswa->agama)) {
+                $q->orWhere('mp.nama_mapel', 'like', '%' . $siswa->agama . '%');
+            }
+        })
+        ->orderBy('ta.nama_tahun')
+        ->orderByRaw("FIELD(n.semester, 'Ganjil', 'Genap')")
+        ->orderBy('mp.nama_mapel');
+}
 
-    private function pdfNilaiQuery(Siswa $siswa)
-    {
-        return DB::table('nilai as n')
-            ->join('jadwal as j', 'j.id', '=', 'n.jadwal_id')
-            ->leftJoin('mata_pelajaran as mp', 'mp.id', '=', 'j.mata_pelajaran_id')
-            ->leftJoin('guru as g', 'g.id', '=', 'j.guru_id')
-            ->leftJoin('rombel as r', 'r.id', '=', 'j.rombel_id')
-            ->leftJoin('tahun_ajaran as ta', 'ta.id', '=', 'n.tahun_ajaran_id')
-            ->select([
-                'n.*',
-                DB::raw('COALESCE(mp.nama_mapel, "-") as mapel'),
-                DB::raw('COALESCE(g.nama, "-") as guru'),
-                DB::raw('COALESCE(r.tingkat, "-") as tingkat'),
-                DB::raw('COALESCE(ta.nama_tahun, "-") as ta'),
-            ])
-            ->where('n.siswa_id', $siswa->id)
-            ->where('n.status_penilaian', 'final')
-            ->where(function ($q) use ($siswa) {
-                $q->where('mp.nama_mapel', 'not like', 'Pendidikan Agama%');
+  private function pdfNilaiQuery(Siswa $siswa)
+{
+    return DB::table('nilai as n')
+        ->join('jadwal as j', 'j.id', '=', 'n.jadwal_id')
+        ->leftJoin('mata_pelajaran as mp', 'mp.id', '=', 'j.mata_pelajaran_id')
+        ->leftJoin('guru as g', 'g.id', '=', 'j.guru_id')
+        ->leftJoin('rombel as r', 'r.id', '=', 'j.rombel_id')
+        ->leftJoin('tahun_ajaran as ta', 'ta.id', '=', 'n.tahun_ajaran_id')
+        ->select([
+            'n.*',
+            DB::raw('COALESCE(mp.nama_mapel, "-") as mapel'),
+            DB::raw('COALESCE(g.nama, "-") as guru'),
+            DB::raw('COALESCE(r.tingkat, "-") as tingkat'),
+            DB::raw('COALESCE(ta.nama_tahun, "-") as ta'),
+        ])
+        ->where('n.siswa_id', $siswa->id)
+        ->where(function ($q) {
+            $q->whereNotNull('n.lm1_nilai')
+              ->orWhereNotNull('n.lm2_nilai')
+              ->orWhereNotNull('n.lm3_nilai')
+              ->orWhereNotNull('n.lm4_nilai')
+              ->orWhereNotNull('n.nilai_akhir');
+        })
+        ->where(function ($q) use ($siswa) {
+            $q->where('mp.nama_mapel', 'not like', 'Pendidikan Agama%');
 
-                if (!empty($siswa->agama)) {
-                    $q->orWhere('mp.nama_mapel', 'like', '%' . $siswa->agama . '%');
-                }
-            });
-    }
+            if (!empty($siswa->agama)) {
+                $q->orWhere('mp.nama_mapel', 'like', '%' . $siswa->agama . '%');
+            }
+        });
+}
 
     private function getTahunAjaranAktif()
     {
