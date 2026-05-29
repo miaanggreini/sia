@@ -11,6 +11,14 @@ use App\Models\Guru;
 use App\Models\Jadwal;
 use App\Models\TahunAjaran;
 
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+
 class PenilaianController extends Controller
 {
 public function index()
@@ -397,6 +405,439 @@ $jadwal = Jadwal::with(['rombel', 'mapel', 'mataPelajaran'])
         'komponen'          => $data['komponen'],
     ])->with('success', 'Nilai berhasil disimpan. TP bernilai 0 tidak ikut dihitung.');
 }
+public function downloadTemplateExcel(Request $request)
+{
+    $data = $request->validate([
+        'rombel_id'         => ['required', 'integer'],
+        'mata_pelajaran_id' => ['required', 'integer'],
+        'komponen'          => ['required', 'in:LM1,LM2,LM3,LM4'],
+    ]);
+
+    $taAktif = $this->getTahunAjaranAktif();
+
+    if (!$taAktif) {
+        return back()->withErrors(['msg' => 'Tahun ajaran aktif belum diatur.']);
+    }
+
+    $guru = auth()->user()->guru
+        ?? Guru::where('user_id', auth()->id())->first();
+
+    $jadwal = Jadwal::with(['rombel', 'mataPelajaran', 'mapel'])
+        ->where('guru_id', $guru->id ?? 0)
+        ->where('rombel_id', (int) $data['rombel_id'])
+        ->where('mata_pelajaran_id', (int) $data['mata_pelajaran_id'])
+        ->whereHas('rombel', function ($r) use ($taAktif) {
+            $r->where('tahun_ajaran_id', $taAktif->id)
+              ->where(function ($w) {
+                  $w->where('aktif', 1)
+                    ->orWhereNull('aktif');
+              });
+        })
+        ->firstOrFail();
+
+    $siswa = $this->siswaQueryUntukJadwal($jadwal)
+        ->orderBy('s.nama')
+        ->get();
+
+    $prefixMap = [
+        'LM1' => 'lm1',
+        'LM2' => 'lm2',
+        'LM3' => 'lm3',
+        'LM4' => 'lm4',
+    ];
+
+    $prefix = $prefixMap[$data['komponen']];
+
+    $nilai = DB::table('nilai')
+        ->where('jadwal_id', $jadwal->id)
+        ->where('tahun_ajaran_id', $taAktif->id)
+        ->where('semester', $taAktif->semester)
+        ->whereIn('siswa_id', $siswa->pluck('id'))
+        ->get()
+        ->keyBy('siswa_id');
+
+    $namaMapel = $jadwal->mataPelajaran->nama_mapel
+        ?? $jadwal->mapel->nama_mapel
+        ?? $jadwal->mataPelajaran->nama
+        ?? $jadwal->mapel->nama
+        ?? 'Mapel';
+
+    $namaRombel = $jadwal->rombel->nama_rombel
+        ?? $jadwal->rombel->nama_kelas
+        ?? $jadwal->rombel->nama
+        ?? '-';
+
+    $kkm = $jadwal->mataPelajaran->kkm
+        ?? $jadwal->mapel->kkm
+        ?? null;
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Input Nilai');
+
+    $sheet->mergeCells('A1:J1');
+    $sheet->setCellValue('A1', 'TEMPLATE INPUT NILAI ' . $data['komponen']);
+    $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+    $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+    $sheet->setCellValue('A3', 'Kelas');
+    $sheet->setCellValue('B3', $namaRombel);
+
+    $sheet->setCellValue('A4', 'Mata Pelajaran');
+    $sheet->setCellValue('B4', $namaMapel);
+
+    $sheet->setCellValue('A5', 'Lingkup Materi');
+    $sheet->setCellValue('B5', $data['komponen']);
+
+    $sheet->setCellValue('A6', 'Tahun Ajaran');
+    $sheet->setCellValue('B6', $taAktif->nama_tahun ?? '-');
+
+    $sheet->setCellValue('A7', 'Semester');
+    $sheet->setCellValue('B7', $taAktif->semester ?? '-');
+
+    $sheet->setCellValue('A8', 'KKM');
+    $sheet->setCellValue('B8', $kkm ?? '-');
+
+    $sheet->setCellValue('A10', 'Petunjuk');
+    $sheet->setCellValue('B10', 'Isi kategori TP, bobot, dan nilai siswa. Nilai 0 dianggap kosong/tidak digunakan.');
+
+    $sheet->setCellValue('A13', 'Bobot Praktik (%)');
+    $sheet->setCellValue('B13', 50);
+
+    $sheet->setCellValue('A14', 'Bobot Teori (%)');
+    $sheet->setCellValue('B14', '=100-B13');
+
+    $sheet->setCellValue('A15', 'Total Bobot (%)');
+    $sheet->setCellValue('B15', '=SUM(B13:B14)');
+
+    $sheet->setCellValue('A18', 'Kategori TP');
+    $sheet->setCellValue('E18', 'Praktik');
+    $sheet->setCellValue('F18', 'Praktik');
+    $sheet->setCellValue('G18', 'Teori');
+    $sheet->setCellValue('H18', 'Teori');
+
+    foreach (['E18', 'F18', 'G18', 'H18'] as $cell) {
+        $validation = $sheet->getCell($cell)->getDataValidation();
+        $validation->setType(DataValidation::TYPE_LIST);
+        $validation->setErrorStyle(DataValidation::STYLE_STOP);
+        $validation->setAllowBlank(false);
+        $validation->setShowDropDown(true);
+        $validation->setFormula1('"Praktik,Teori"');
+    }
+
+    $headers = [
+        'A19' => 'No',
+        'B19' => 'Siswa ID',
+        'C19' => 'NIS/NISN',
+        'D19' => 'Nama Siswa',
+        'E19' => 'TP1',
+        'F19' => 'TP2',
+        'G19' => 'TP3',
+        'H19' => 'TP4',
+        'I19' => 'Nilai LM',
+        'J19' => 'Catatan',
+    ];
+
+    foreach ($headers as $cell => $value) {
+        $sheet->setCellValue($cell, $value);
+    }
+
+    $startRow = 20;
+
+    foreach ($siswa as $index => $s) {
+        $rowNumber = $startRow + $index;
+        $rowNilai = $nilai[$s->id] ?? null;
+
+        $tp1 = $rowNilai ? ($rowNilai->{$prefix . '_tp1'} ?? 0) : 0;
+        $tp2 = $rowNilai ? ($rowNilai->{$prefix . '_tp2'} ?? 0) : 0;
+        $tp3 = $rowNilai ? ($rowNilai->{$prefix . '_tp3'} ?? 0) : 0;
+        $tp4 = $rowNilai ? ($rowNilai->{$prefix . '_tp4'} ?? 0) : 0;
+
+        $sheet->setCellValue("A{$rowNumber}", $index + 1);
+        $sheet->setCellValue("B{$rowNumber}", $s->id);
+        $sheet->setCellValue("C{$rowNumber}", $s->nis ?? $s->nisn ?? '');
+        $sheet->setCellValue("D{$rowNumber}", $s->nama ?? '-');
+
+        $sheet->setCellValue("E{$rowNumber}", $tp1 ?? 0);
+        $sheet->setCellValue("F{$rowNumber}", $tp2 ?? 0);
+        $sheet->setCellValue("G{$rowNumber}", $tp3 ?? 0);
+        $sheet->setCellValue("H{$rowNumber}", $tp4 ?? 0);
+
+        $formula = '=IF(SUMPRODUCT(--(E'.$rowNumber.':H'.$rowNumber.'>0))=0,"",ROUND(IF(AND(SUMPRODUCT(--($E$18:$H$18="Praktik"),--(E'.$rowNumber.':H'.$rowNumber.'>0))>0,SUMPRODUCT(--($E$18:$H$18="Teori"),--(E'.$rowNumber.':H'.$rowNumber.'>0))>0),(SUMPRODUCT(--($E$18:$H$18="Praktik"),E'.$rowNumber.':H'.$rowNumber.',--(E'.$rowNumber.':H'.$rowNumber.'>0))/SUMPRODUCT(--($E$18:$H$18="Praktik"),--(E'.$rowNumber.':H'.$rowNumber.'>0))*$B$13/100)+(SUMPRODUCT(--($E$18:$H$18="Teori"),E'.$rowNumber.':H'.$rowNumber.',--(E'.$rowNumber.':H'.$rowNumber.'>0))/SUMPRODUCT(--($E$18:$H$18="Teori"),--(E'.$rowNumber.':H'.$rowNumber.'>0))*$B$14/100),IF(SUMPRODUCT(--($E$18:$H$18="Praktik"),--(E'.$rowNumber.':H'.$rowNumber.'>0))>0,SUMPRODUCT(--($E$18:$H$18="Praktik"),E'.$rowNumber.':H'.$rowNumber.',--(E'.$rowNumber.':H'.$rowNumber.'>0))/SUMPRODUCT(--($E$18:$H$18="Praktik"),--(E'.$rowNumber.':H'.$rowNumber.'>0)),SUMPRODUCT(--($E$18:$H$18="Teori"),E'.$rowNumber.':H'.$rowNumber.',--(E'.$rowNumber.':H'.$rowNumber.'>0))/SUMPRODUCT(--($E$18:$H$18="Teori"),--(E'.$rowNumber.':H'.$rowNumber.'>0)))),2))';
+
+        $sheet->setCellValue("I{$rowNumber}", $formula);
+    }
+
+    $lastRow = max($startRow, $startRow + $siswa->count() - 1);
+
+    $sheet->getStyle('A19:J19')->getFont()->setBold(true);
+    $sheet->getStyle('A19:J19')->getFill()
+        ->setFillType(Fill::FILL_SOLID)
+        ->getStartColor()
+        ->setRGB('E0E7FF');
+
+    $sheet->getStyle('A1:J' . $lastRow)
+        ->getAlignment()
+        ->setVertical(Alignment::VERTICAL_CENTER);
+
+    $sheet->getStyle('A19:J' . $lastRow)
+        ->getBorders()
+        ->getAllBorders()
+        ->setBorderStyle(Border::BORDER_THIN);
+
+    $sheet->getColumnDimension('A')->setWidth(6);
+    $sheet->getColumnDimension('B')->setWidth(12);
+    $sheet->getColumnDimension('C')->setWidth(18);
+    $sheet->getColumnDimension('D')->setWidth(32);
+    $sheet->getColumnDimension('E')->setWidth(12);
+    $sheet->getColumnDimension('F')->setWidth(12);
+    $sheet->getColumnDimension('G')->setWidth(12);
+    $sheet->getColumnDimension('H')->setWidth(12);
+    $sheet->getColumnDimension('I')->setWidth(14);
+    $sheet->getColumnDimension('J')->setWidth(22);
+
+    $sheet->getStyle('E20:I' . $lastRow)
+        ->getNumberFormat()
+        ->setFormatCode('0.00');
+
+    $sheet->getStyle('B13:B15')
+        ->getNumberFormat()
+        ->setFormatCode('0.00');
+
+    foreach (range($startRow, $lastRow) as $rowNumber) {
+        foreach (['E', 'F', 'G', 'H'] as $col) {
+            $validation = $sheet->getCell("{$col}{$rowNumber}")->getDataValidation();
+            $validation->setType(DataValidation::TYPE_DECIMAL);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowInputMessage(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setOperator(DataValidation::OPERATOR_BETWEEN);
+            $validation->setFormula1('0');
+            $validation->setFormula2('100');
+        }
+    }
+
+    $sheet->freezePane('A20');
+
+    $filename = 'template-nilai-' . Str::slug($namaRombel . '-' . $namaMapel . '-' . $data['komponen']) . '.xlsx';
+
+    return response()->streamDownload(function () use ($spreadsheet) {
+        $writer = new Xlsx($spreadsheet);
+        $writer->save('php://output');
+    }, $filename, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+}
+
+public function importExcel(Request $request)
+{
+    $data = $request->validate([
+        'jadwal_id'         => ['required', 'integer'],
+        'rombel_id'         => ['required', 'integer'],
+        'mata_pelajaran_id' => ['required', 'integer'],
+        'komponen'          => ['required', 'in:LM1,LM2,LM3,LM4'],
+        'file_excel'        => ['required', 'file', 'mimes:xlsx,xls'],
+    ]);
+
+    $taAktif = $this->getTahunAjaranAktif();
+
+    if (!$taAktif) {
+        return back()->withErrors(['msg' => 'Tahun ajaran aktif belum diatur.']);
+    }
+
+    $statusInfo = $this->getStatusPenilaianSemester(
+        (int) $data['jadwal_id'],
+        (int) $taAktif->id,
+        $taAktif->semester
+    );
+
+    if ($statusInfo['status'] === 'final') {
+        return back()->withErrors(['msg' => 'Nilai semester ini sudah difinalisasi dan terkunci.']);
+    }
+
+    $guru = auth()->user()->guru
+        ?? Guru::where('user_id', auth()->id())->first();
+
+    $jadwal = Jadwal::with(['rombel', 'mataPelajaran', 'mapel'])
+        ->where('id', (int) $data['jadwal_id'])
+        ->where('guru_id', $guru->id ?? 0)
+        ->where('rombel_id', (int) $data['rombel_id'])
+        ->where('mata_pelajaran_id', (int) $data['mata_pelajaran_id'])
+        ->whereHas('rombel', function ($r) use ($taAktif) {
+            $r->where('tahun_ajaran_id', $taAktif->id)
+              ->where(function ($w) {
+                  $w->where('aktif', 1)
+                    ->orWhereNull('aktif');
+              });
+        })
+        ->firstOrFail();
+
+    $kkm = $jadwal->mataPelajaran->kkm
+        ?? $jadwal->mapel->kkm
+        ?? null;
+
+    if ($kkm === null || $kkm === '') {
+        return back()->withErrors([
+            'msg' => 'KKM mata pelajaran belum diatur. Silakan lengkapi KKM pada data mata pelajaran terlebih dahulu.',
+        ]);
+    }
+
+    $spreadsheet = IOFactory::load($request->file('file_excel')->getRealPath());
+    $sheet = $spreadsheet->getActiveSheet();
+
+    $jenisTp = [
+        'tp1' => strtolower(trim((string) $sheet->getCell('E18')->getCalculatedValue())),
+        'tp2' => strtolower(trim((string) $sheet->getCell('F18')->getCalculatedValue())),
+        'tp3' => strtolower(trim((string) $sheet->getCell('G18')->getCalculatedValue())),
+        'tp4' => strtolower(trim((string) $sheet->getCell('H18')->getCalculatedValue())),
+    ];
+
+    foreach ($jenisTp as $key => $jenis) {
+        if (!in_array($jenis, ['praktik', 'teori'], true)) {
+            return back()->withErrors([
+                'msg' => strtoupper($key) . ' harus berisi Praktik atau Teori.',
+            ]);
+        }
+    }
+
+    $bobotPraktik = (float) $sheet->getCell('B13')->getCalculatedValue();
+    $bobotTeori = (float) $sheet->getCell('B14')->getCalculatedValue();
+
+    if (abs(($bobotPraktik + $bobotTeori) - 100) > 0.01) {
+        return back()->withErrors([
+            'msg' => 'Total bobot praktik dan teori pada Excel harus 100%.',
+        ]);
+    }
+
+    $validSiswaIds = $this->siswaQueryUntukJadwal($jadwal)
+        ->pluck('s.id')
+        ->map(fn ($v) => (int) $v)
+        ->all();
+
+    $prefixMap = [
+        'LM1' => 'lm1',
+        'LM2' => 'lm2',
+        'LM3' => 'lm3',
+        'LM4' => 'lm4',
+    ];
+
+    $prefix = $prefixMap[$data['komponen']];
+    $highestRow = $sheet->getHighestRow();
+    $jumlahImport = 0;
+
+    DB::beginTransaction();
+
+    try {
+        for ($row = 20; $row <= $highestRow; $row++) {
+            $siswaId = (int) $sheet->getCell("B{$row}")->getCalculatedValue();
+            $namaSiswa = trim((string) $sheet->getCell("D{$row}")->getCalculatedValue());
+
+            if (!$siswaId && $namaSiswa === '') {
+                continue;
+            }
+
+            if (!in_array($siswaId, $validSiswaIds, true)) {
+                throw new \Exception("Baris {$row}: siswa tidak valid untuk kelas/mapel ini.");
+            }
+
+            $tp1 = $this->normalizeNilai($sheet->getCell("E{$row}")->getCalculatedValue());
+            $tp2 = $this->normalizeNilai($sheet->getCell("F{$row}")->getCalculatedValue());
+            $tp3 = $this->normalizeNilai($sheet->getCell("G{$row}")->getCalculatedValue());
+            $tp4 = $this->normalizeNilai($sheet->getCell("H{$row}")->getCalculatedValue());
+
+            $allNull = $tp1 === null && $tp2 === null && $tp3 === null && $tp4 === null;
+
+            if ($allNull) {
+                continue;
+            }
+
+            $lmNilai = $this->hitungNilaiLmBerbobot(
+                [
+                    'tp1' => $tp1,
+                    'tp2' => $tp2,
+                    'tp3' => $tp3,
+                    'tp4' => $tp4,
+                ],
+                $jenisTp,
+                $bobotPraktik,
+                $bobotTeori
+            );
+
+            $where = [
+                'jadwal_id'       => (int) $data['jadwal_id'],
+                'siswa_id'        => (int) $siswaId,
+                'tahun_ajaran_id' => (int) $taAktif->id,
+                'semester'        => $taAktif->semester,
+            ];
+
+            $exists = DB::table('nilai')->where($where)->exists();
+
+            $payload = [
+                "{$prefix}_tp1"    => $tp1,
+                "{$prefix}_tp2"    => $tp2,
+                "{$prefix}_tp3"    => $tp3,
+                "{$prefix}_tp4"    => $tp4,
+                "{$prefix}_nilai"  => $lmNilai,
+                'status_penilaian' => 'draft',
+                'updated_at'       => now(),
+            ];
+
+            if (!$exists) {
+                $payload['created_at'] = now();
+            }
+
+            DB::table('nilai')->updateOrInsert($where, $payload);
+
+            $rowNilai = DB::table('nilai')->where($where)->first();
+
+            $nilaiAkhir = $this->averageNullable([
+                $rowNilai->lm1_nilai ?? null,
+                $rowNilai->lm2_nilai ?? null,
+                $rowNilai->lm3_nilai ?? null,
+                $rowNilai->lm4_nilai ?? null,
+            ]);
+
+            $statusKetuntasan = 'tidak_tuntas';
+
+            if ($nilaiAkhir !== null) {
+                $statusKetuntasan = $nilaiAkhir >= (float) $kkm ? 'tuntas' : 'tidak_tuntas';
+            }
+
+            DB::table('nilai')
+                ->where($where)
+                ->update([
+                    'nilai_akhir'      => $nilaiAkhir,
+                    'status'           => $statusKetuntasan,
+                    'status_penilaian' => 'draft',
+                    'updated_at'       => now(),
+                ]);
+
+            $jumlahImport++;
+        }
+
+        DB::commit();
+    } catch (\Throwable $e) {
+        DB::rollBack();
+
+        return back()->withErrors([
+            'msg' => 'Gagal import Excel: ' . $e->getMessage(),
+        ]);
+    }
+
+    if ($jumlahImport === 0) {
+        return back()->withErrors([
+            'msg' => 'Tidak ada nilai yang diimport. Pastikan TP1–TP4 sudah diisi lebih dari 0.',
+        ]);
+    }
+
+    return redirect()->route('guru.penilaian.create', [
+        'rombel_id'         => $data['rombel_id'],
+        'mata_pelajaran_id' => $data['mata_pelajaran_id'],
+        'komponen'          => $data['komponen'],
+    ])->with('success', "Import Excel berhasil. {$jumlahImport} data nilai siswa diperbarui.");
+}
+
     public function finalize(Request $request)
     {
         $data = $request->validate([
@@ -651,14 +1092,6 @@ private function normalizeNilai($value): ?float
 
     $value = (float) $value;
 
-    /*
-    |--------------------------------------------------------------------------
-    | Catatan:
-    |--------------------------------------------------------------------------
-    | Pada form, nilai default ditampilkan 0.
-    | Maka angka 0 dianggap sebagai "belum diisi / TP tidak digunakan".
-    | Dengan begitu, TP kosong tidak membuat nilai akhir turun.
-    */
     if ($value <= 0) {
         return null;
     }
@@ -673,7 +1106,7 @@ private function normalizeNilai($value): ?float
         return $filtered->isEmpty() ? null : round($filtered->avg(), 2);
     }
 
-   private function hitungNilaiLmBerbobot(array $tp, array $jenisTp, float $bobotPraktik, float $bobotTeori): ?float
+private function hitungNilaiLmBerbobot(array $tp, array $jenisTp, float $bobotPraktik, float $bobotTeori): ?float
 {
     $nilaiPraktik = [];
     $nilaiTeori = [];
@@ -703,57 +1136,26 @@ private function normalizeNilai($value): ?float
         return null;
     }
 
-    $komponenAktif = [];
+    $rataPraktik = $adaPraktik
+        ? array_sum($nilaiPraktik) / count($nilaiPraktik)
+        : null;
 
-    if ($adaPraktik && $bobotPraktik > 0) {
-        $komponenAktif[] = [
-            'nilai' => array_sum($nilaiPraktik) / count($nilaiPraktik),
-            'bobot' => $bobotPraktik,
-        ];
+    $rataTeori = $adaTeori
+        ? array_sum($nilaiTeori) / count($nilaiTeori)
+        : null;
+
+    if ($adaPraktik && $adaTeori) {
+        return round(
+            ($rataPraktik * ($bobotPraktik / 100)) +
+            ($rataTeori * ($bobotTeori / 100)),
+            2
+        );
     }
 
-    if ($adaTeori && $bobotTeori > 0) {
-        $komponenAktif[] = [
-            'nilai' => array_sum($nilaiTeori) / count($nilaiTeori),
-            'bobot' => $bobotTeori,
-        ];
+    if ($adaPraktik) {
+        return round($rataPraktik, 2);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Jika ada nilai, tetapi bobot kategorinya 0,
-    | sistem tetap menghitung rata-rata nilai yang ada.
-    |--------------------------------------------------------------------------
-    */
-    if (empty($komponenAktif)) {
-        $semuaNilai = array_merge($nilaiPraktik, $nilaiTeori);
-
-        return count($semuaNilai) > 0
-            ? round(array_sum($semuaNilai) / count($semuaNilai), 2)
-            : null;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Bobot dinormalisasi berdasarkan komponen yang benar-benar ada nilainya.
-    | Contoh:
-    | Bobot Praktik 50 dan Teori 50,
-    | tapi guru hanya isi nilai Praktik,
-    | maka nilai Praktik dihitung sebagai 100% untuk sementara.
-    |--------------------------------------------------------------------------
-    */
-    $totalBobotAktif = array_sum(array_column($komponenAktif, 'bobot'));
-
-    if ($totalBobotAktif <= 0) {
-        return null;
-    }
-
-    $nilaiLm = 0;
-
-    foreach ($komponenAktif as $komponen) {
-        $nilaiLm += $komponen['nilai'] * ($komponen['bobot'] / $totalBobotAktif);
-    }
-
-    return round($nilaiLm, 2);
+    return round($rataTeori, 2);
 }
 }
