@@ -69,6 +69,49 @@ public function index(Request $request)
         'chartValues' => $chartValues,
     ]);
 }
+public function detail(Request $request)
+{
+    $user = auth()->user();
+
+    $siswa = $user->siswa ?? Siswa::where('user_id', $user->id)->firstOrFail();
+
+    $tahunAjaran = $request->query('tahun_ajaran');
+    $semester = $request->query('semester');
+    $tingkat = $request->query('tingkat');
+
+    $query = $this->pdfNilaiQuery($siswa);
+
+    if ($tahunAjaran) {
+        $query->where('ta.nama_tahun', $tahunAjaran);
+    }
+
+    if ($semester) {
+        $query->where('n.semester', $semester);
+    }
+
+    if ($tingkat) {
+        $query->where('r.tingkat', $tingkat);
+    }
+
+    $rows = $query
+        ->orderBy('mp.nama_mapel')
+        ->get();
+
+    $rataSemester = $rows->pluck('nilai_akhir')
+        ->filter(fn ($v) => $v !== null)
+        ->avg();
+
+    $rataSemester = $rataSemester !== null ? round($rataSemester, 2) : null;
+
+    return view('siswa.nilai.detail', [
+        'siswa' => $siswa,
+        'rows' => $rows,
+        'tahunAjaran' => $tahunAjaran,
+        'semester' => $semester,
+        'tingkat' => $tingkat,
+        'rataSemester' => $rataSemester,
+    ]);
+}
     public function downloadPdf(Request $request)
     {
         $user = auth()->user();
@@ -223,6 +266,7 @@ public function index(Request $request)
         ->select([
             'n.*',
             DB::raw('COALESCE(mp.nama_mapel, "-") as mapel'),
+            DB::raw('COALESCE(mp.kkm, 0) as kkm'),
             DB::raw('COALESCE(g.nama, "-") as guru'),
             DB::raw('COALESCE(r.tingkat, "-") as tingkat'),
             DB::raw('COALESCE(ta.nama_tahun, "-") as ta'),

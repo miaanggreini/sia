@@ -476,6 +476,7 @@ Route::middleware(['auth', 'role:siswa'])
         Route::get('/jadwal', [SiswaJadwalController::class, 'index'])->name('jadwal.index');
         Route::get('/presensi', [PresensiSiswaController::class, 'index'])->name('presensi.index');
         Route::get('/nilai', [SiswaNilaiController::class, 'index'])->name('nilai.index');
+        Route::get('/nilai/detail', [SiswaNilaiController::class, 'detail'])->name('nilai.detail');
         Route::get('/nilai/download-pdf', [SiswaNilaiController::class, 'downloadPdf'])->name('nilai.download-pdf');
         Route::get('/pengumuman', [SiswaPengumumanController::class, 'index'])->name('pengumuman.index');
         Route::get('/pengumuman/{pengumuman}', [SiswaPengumumanController::class, 'show'])->name('pengumuman.show');
