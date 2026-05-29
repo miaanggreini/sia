@@ -20,8 +20,16 @@ class NilaiController extends Controller
         $siswa = $user->siswa ?? Siswa::where('user_id', $user->id)->firstOrFail();
         $taAktif = $this->getTahunAjaranAktif();
 
-        $rows = $this->baseNilaiQuery($siswa)->get();
+    $rows = $this->baseNilaiQuery($siswa)->get();
 
+    dd($rows->map(function ($row) {
+        return [
+            'mapel' => $row->mapel,
+            'nilai_akhir' => $row->nilai_akhir ?? null,
+            'status_penilaian' => $row->status_penilaian ?? null,
+            'status' => $row->status ?? null,
+        ];
+    }));
         $taAktifLabel = $taAktif?->nama_tahun ?? '-';
 
         $overallAvg = $rows->pluck('rata')->filter(fn ($v) => $v !== null)->avg();
