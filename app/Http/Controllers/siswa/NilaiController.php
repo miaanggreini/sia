@@ -13,71 +13,62 @@ use Illuminate\Support\Facades\Schema;
 
 class NilaiController extends Controller
 {
-    public function index(Request $request)
-    {
-        $user = auth()->user();
+public function index(Request $request)
+{
+    $user = auth()->user();
 
-        $siswa = $user->siswa ?? Siswa::where('user_id', $user->id)->firstOrFail();
-        $taAktif = $this->getTahunAjaranAktif();
+    $siswa = $user->siswa ?? Siswa::where('user_id', $user->id)->firstOrFail();
+    $taAktif = $this->getTahunAjaranAktif();
 
     $rows = $this->baseNilaiQuery($siswa)->get();
 
-    dd($rows->map(function ($row) {
-        return [
-            'mapel' => $row->mapel,
-            'nilai_akhir' => $row->nilai_akhir ?? null,
-            'status_penilaian' => $row->status_penilaian ?? null,
-            'status' => $row->status ?? null,
-        ];
-    }));
-        $taAktifLabel = $taAktif?->nama_tahun ?? '-';
+    $taAktifLabel = $taAktif?->nama_tahun ?? '-';
 
-        $overallAvg = $rows->pluck('rata')->filter(fn ($v) => $v !== null)->avg();
-        $overallAvg = $overallAvg !== null ? round($overallAvg, 2) : null;
+    $overallAvg = $rows->pluck('rata')->filter(fn ($v) => $v !== null)->avg();
+    $overallAvg = $overallAvg !== null ? round($overallAvg, 2) : null;
 
-        $groups = $rows
-            ->groupBy(function ($row) {
-                return implode('|', [
-                    $row->ta ?? '-',
-                    $row->semester ?? '-',
-                    $row->tingkat ?? '-',
-                ]);
-            })
-            ->map(function (Collection $items) {
-                $first = $items->first();
+    $groups = $rows
+        ->groupBy(function ($row) {
+            return implode('|', [
+                $row->ta ?? '-',
+                $row->semester ?? '-',
+                $row->tingkat ?? '-',
+            ]);
+        })
+        ->map(function (Collection $items) {
+            $first = $items->first();
 
-                $avg = $items->pluck('rata')->filter(fn ($v) => $v !== null)->avg();
-                $avg = $avg !== null ? round($avg, 2) : null;
+            $avg = $items->pluck('rata')->filter(fn ($v) => $v !== null)->avg();
+            $avg = $avg !== null ? round($avg, 2) : null;
 
-                return (object) [
-                    'ta'       => $first->ta ?? '-',
-                    'semester' => $first->semester ?? '-',
-                    'tingkat'  => $first->tingkat ?? '-',
-                    'avg'      => $avg,
-                    'rows'     => $items->values(),
-                ];
-            })
-            ->values();
+            return (object) [
+                'ta'       => $first->ta ?? '-',
+                'semester' => $first->semester ?? '-',
+                'tingkat'  => $first->tingkat ?? '-',
+                'avg'      => $avg,
+                'rows'     => $items->values(),
+            ];
+        })
+        ->values();
 
-        $chartLabels = $groups->map(function ($g) {
-            $semester = $this->normalizeSemester($g->semester);
-            return 'TA ' . ($g->ta ?? '-') . ' - ' . ($g->tingkat ?? '-') . '/' . ($semester ?? '-');
-        })->values()->all();
+    $chartLabels = $groups->map(function ($g) {
+        $semester = $this->normalizeSemester($g->semester);
+        return 'TA ' . ($g->ta ?? '-') . ' - ' . ($g->tingkat ?? '-') . '/' . ($semester ?? '-');
+    })->values()->all();
 
-        $chartValues = $groups->map(function ($g) {
-            return $g->avg ?? 0;
-        })->values()->all();
+    $chartValues = $groups->map(function ($g) {
+        return $g->avg ?? 0;
+    })->values()->all();
 
-        return view('siswa.nilai.index', [
-            'siswa'       => $siswa,
-            'taAktif'     => $taAktifLabel,
-            'overallAvg'  => $overallAvg,
-            'groups'      => $groups,
-            'chartLabels' => $chartLabels,
-            'chartValues' => $chartValues,
-        ]);
-    }
-
+    return view('siswa.nilai.index', [
+        'siswa'       => $siswa,
+        'taAktif'     => $taAktifLabel,
+        'overallAvg'  => $overallAvg,
+        'groups'      => $groups,
+        'chartLabels' => $chartLabels,
+        'chartValues' => $chartValues,
+    ]);
+}
     public function downloadPdf(Request $request)
     {
         $user = auth()->user();
@@ -168,9 +159,36 @@ class NilaiController extends Controller
             'n.status',
             'n.status_penilaian',
             'n.finalized_at',
+
+            'n.lm1_tp1',
+            'n.lm1_tp2',
+            'n.lm1_tp3',
+            'n.lm1_tp4',
+            'n.lm1_nilai',
+
+            'n.lm2_tp1',
+            'n.lm2_tp2',
+            'n.lm2_tp3',
+            'n.lm2_tp4',
+            'n.lm2_nilai',
+
+            'n.lm3_tp1',
+            'n.lm3_tp2',
+            'n.lm3_tp3',
+            'n.lm3_tp4',
+            'n.lm3_nilai',
+
+            'n.lm4_tp1',
+            'n.lm4_tp2',
+            'n.lm4_tp3',
+            'n.lm4_tp4',
+            'n.lm4_nilai',
+
             'n.nilai_akhir as rata',
             'n.nilai_akhir',
+
             DB::raw('COALESCE(mp.nama_mapel, "-") as mapel'),
+            DB::raw('COALESCE(mp.kkm, 0) as kkm'),
             DB::raw('COALESCE(g.nama, "-") as guru'),
             DB::raw('COALESCE(r.tingkat, "-") as tingkat'),
             DB::raw('COALESCE(ta.nama_tahun, "-") as ta'),
@@ -194,7 +212,6 @@ class NilaiController extends Controller
         ->orderByRaw("FIELD(n.semester, 'Ganjil', 'Genap')")
         ->orderBy('mp.nama_mapel');
 }
-
   private function pdfNilaiQuery(Siswa $siswa)
 {
     return DB::table('nilai as n')

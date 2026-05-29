@@ -5,7 +5,7 @@
         <div>
             <h1 class="text-2xl font-semibold text-gray-900">Nilai Akademik</h1>
             <p class="text-sm text-gray-500 mt-1">
-                Rekap nilai akhir mata pelajaran per semester.
+                Rekap nilai akhir dan rincian TP/LM mata pelajaran per semester.
             </p>
         </div>
     </div>
@@ -66,6 +66,7 @@
                                 {{ $group->avg !== null ? number_format($group->avg, 2) : '-' }}
                             </div>
                         </div>
+
                         <svg class="w-5 h-5 text-gray-500 transition-transform duration-200"
                              data-icon
                              xmlns="http://www.w3.org/2000/svg"
@@ -79,9 +80,10 @@
                 </button>
 
                 <div id="{{ $collapseId }}" class="{{ $idx === 0 ? '' : 'hidden' }}">
-                    <div class="px-5 py-3 border-t border-b bg-gray-50 flex items-center justify-between">
+                    <div class="px-5 py-3 border-t border-b bg-gray-50 flex items-center justify-between gap-3 flex-wrap">
                         <div class="text-sm text-gray-600">
-                            Detail nilai semester {{ $group->semester }} tahun ajaran {{ $group->ta }}
+                            Detail nilai semester {{ $group->semester }} tahun ajaran {{ $group->ta }}.
+                            Rincian TP dan LM dapat dilihat langsung tanpa mengunduh PDF.
                         </div>
 
                         @if (Route::has('siswa.nilai.download-pdf'))
@@ -107,54 +109,179 @@
                         @endif
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full text-sm">
-                            <thead class="bg-gray-100 text-gray-700">
-                                <tr>
-                                    <th class="px-4 py-3 text-left w-16">No</th>
-                                    <th class="px-4 py-3 text-left">Mata Pelajaran</th>
-                                    <th class="px-4 py-3 text-left">Guru</th>
-                                    <th class="px-4 py-3 text-left w-36">Nilai Akhir</th>
-                                    <th class="px-4 py-3 text-left w-40">Predikat</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y">
-                                @forelse($group->rows as $i => $row)
-                                    @php
-                                        $nilaiAkhir = $row->nilai_akhir ?? $row->rata ?? null;
-                                        $namaMapel = $row->mapel ?? $row->nama_mapel ?? $row->mata_pelajaran ?? '-';
-                                        $namaGuru = $row->guru ?? '-';
-                                    @endphp
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3">{{ $i + 1 }}</td>
-                                        <td class="px-4 py-3 font-medium text-gray-900">{{ $namaMapel }}</td>
-                                        <td class="px-4 py-3 text-gray-700">{{ $namaGuru }}</td>
-                                        <td class="px-4 py-3 font-semibold text-indigo-700">
-                                            {{ $nilaiAkhir !== null ? number_format($nilaiAkhir, 2) : '-' }}
-                                        </td>
-                                        <td class="px-4 py-3">
+                    <div class="p-5 space-y-4">
+                        @forelse($group->rows as $i => $row)
+                            @php
+                                $nilaiAkhir = $row->nilai_akhir ?? $row->rata ?? null;
+                                $namaMapel = $row->mapel ?? $row->nama_mapel ?? $row->mata_pelajaran ?? '-';
+                                $namaGuru = $row->guru ?? '-';
+                                $kkm = $row->kkm ?? null;
+
+                                $fmt = function ($value) {
+                                    return $value !== null && $value !== ''
+                                        ? number_format((float) $value, 2)
+                                        : '-';
+                                };
+
+                                $fmtKkm = function ($value) {
+                                    return $value !== null && $value !== '' && (float) $value > 0
+                                        ? number_format((float) $value, 0)
+                                        : '-';
+                                };
+
+                                $lmRows = [
+                                    [
+                                        'label' => 'LM1',
+                                        'tp1' => $row->lm1_tp1 ?? null,
+                                        'tp2' => $row->lm1_tp2 ?? null,
+                                        'tp3' => $row->lm1_tp3 ?? null,
+                                        'tp4' => $row->lm1_tp4 ?? null,
+                                        'nilai' => $row->lm1_nilai ?? null,
+                                    ],
+                                    [
+                                        'label' => 'LM2',
+                                        'tp1' => $row->lm2_tp1 ?? null,
+                                        'tp2' => $row->lm2_tp2 ?? null,
+                                        'tp3' => $row->lm2_tp3 ?? null,
+                                        'tp4' => $row->lm2_tp4 ?? null,
+                                        'nilai' => $row->lm2_nilai ?? null,
+                                    ],
+                                    [
+                                        'label' => 'LM3',
+                                        'tp1' => $row->lm3_tp1 ?? null,
+                                        'tp2' => $row->lm3_tp2 ?? null,
+                                        'tp3' => $row->lm3_tp3 ?? null,
+                                        'tp4' => $row->lm3_tp4 ?? null,
+                                        'nilai' => $row->lm3_nilai ?? null,
+                                    ],
+                                    [
+                                        'label' => 'LM4',
+                                        'tp1' => $row->lm4_tp1 ?? null,
+                                        'tp2' => $row->lm4_tp2 ?? null,
+                                        'tp3' => $row->lm4_tp3 ?? null,
+                                        'tp4' => $row->lm4_tp4 ?? null,
+                                        'nilai' => $row->lm4_nilai ?? null,
+                                    ],
+                                ];
+                            @endphp
+
+                            <div class="rounded-xl border bg-white overflow-hidden">
+                                {{-- Header mapel --}}
+                                <div class="px-4 py-4 bg-gray-50 border-b">
+                                    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                                        <div>
+                                            <div class="text-xs text-gray-500 mb-1">
+                                                Mata Pelajaran {{ $i + 1 }}
+                                            </div>
+                                            <h3 class="font-semibold text-gray-900">
+                                                {{ $namaMapel }}
+                                            </h3>
+                                            <p class="text-sm text-gray-600 mt-1">
+                                                Guru: {{ $namaGuru }}
+                                            </p>
+                                        </div>
+
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                Nilai Akhir: {{ $fmt($nilaiAkhir) }}
+                                            </span>
+
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                                                KKM: {{ $fmtKkm($kkm) }}
+                                            </span>
+
+                                            @if(($row->status_penilaian ?? null) === 'final')
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-100">
+                                                    Final
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-700 border border-yellow-100">
+                                                    Sementara
+                                                </span>
+                                            @endif
+
                                             @if(($row->status ?? null) === 'tuntas')
-                                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-100">
                                                     Tuntas
                                                 </span>
                                             @elseif(($row->status ?? null) === 'tidak_tuntas')
-                                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-100">
                                                     Tidak Tuntas
                                                 </span>
                                             @else
-                                                <span class="text-gray-400">-</span>
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-500 border border-gray-100">
+                                                    Belum Dinilai
+                                                </span>
                                             @endif
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                                            Tidak ada data nilai pada periode ini.
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Rincian TP dan LM --}}
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full text-sm">
+                                        <thead class="bg-white text-gray-700 border-b">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left w-24">Lingkup Materi</th>
+                                                <th class="px-4 py-3 text-center">TP1</th>
+                                                <th class="px-4 py-3 text-center">TP2</th>
+                                                <th class="px-4 py-3 text-center">TP3</th>
+                                                <th class="px-4 py-3 text-center">TP4</th>
+                                                <th class="px-4 py-3 text-center bg-indigo-50 text-indigo-700">Nilai LM</th>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody class="divide-y">
+                                            @foreach($lmRows as $lm)
+                                                <tr class="hover:bg-gray-50">
+                                                    <td class="px-4 py-3 font-semibold text-gray-900">
+                                                        {{ $lm['label'] }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center">
+                                                        {{ $fmt($lm['tp1']) }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center">
+                                                        {{ $fmt($lm['tp2']) }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center">
+                                                        {{ $fmt($lm['tp3']) }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center">
+                                                        {{ $fmt($lm['tp4']) }}
+                                                    </td>
+                                                    <td class="px-4 py-3 text-center font-semibold text-indigo-700 bg-indigo-50">
+                                                        {{ $fmt($lm['nilai']) }}
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+
+                                        <tfoot class="bg-gray-50 border-t">
+                                            <tr>
+                                                <td colspan="5" class="px-4 py-3 text-right font-semibold text-gray-700">
+                                                    Nilai Akhir
+                                                </td>
+                                                <td class="px-4 py-3 text-center font-bold text-indigo-700">
+                                                    {{ $fmt($nilaiAkhir) }}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="5" class="px-4 py-3 text-right font-semibold text-gray-700">
+                                                    KKM
+                                                </td>
+                                                <td class="px-4 py-3 text-center font-bold text-amber-700">
+                                                    {{ $fmtKkm($kkm) }}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="rounded-xl border bg-white px-5 py-8 text-center text-gray-500">
+                                Tidak ada data nilai pada periode ini.
+                            </div>
+                        @endforelse
                     </div>
                 </div>
             </div>
@@ -174,6 +301,7 @@
             const chartValues = @json($chartValues);
 
             const ctx = document.getElementById('nilaiChart');
+
             if (ctx) {
                 new Chart(ctx, {
                     type: 'bar',
@@ -218,11 +346,15 @@
 
             document.addEventListener('DOMContentLoaded', function () {
                 const firstOpen = document.querySelector('[id^="collapse-nilai-"]:not(.hidden)');
+
                 if (firstOpen) {
                     const btnId = firstOpen.id.replace('collapse', 'accordion');
                     const btn = document.getElementById(btnId);
                     const icon = btn?.querySelector('[data-icon]');
-                    if (icon) icon.classList.add('rotate-180');
+
+                    if (icon) {
+                        icon.classList.add('rotate-180');
+                    }
                 }
             });
         </script>
