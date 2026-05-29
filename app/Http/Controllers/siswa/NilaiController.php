@@ -111,7 +111,7 @@ public function detail(Request $request)
         'tingkat' => $tingkat,
         'rataSemester' => $rataSemester,
     ]);
-}
+}   
     public function downloadPdf(Request $request)
     {
         $user = auth()->user();
@@ -287,7 +287,6 @@ public function detail(Request $request)
             }
         });
 }
-
     private function getTahunAjaranAktif()
     {
         return TahunAjaran::where('status', 'aktif')->latest('id')->first();

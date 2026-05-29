@@ -8,12 +8,6 @@
             : '-';
     };
 
-    $fmtKkm = function ($value) {
-        return $value !== null && $value !== '' && (float) $value > 0
-            ? number_format((float) $value, 0)
-            : '-';
-    };
-
     $groups = $groups ?? collect();
     $chartLabels = $chartLabels ?? [];
     $chartValues = $chartValues ?? [];
@@ -22,7 +16,7 @@
 <div class="mb-6">
     <h1 class="text-2xl font-semibold text-gray-900">Nilai Akademik</h1>
     <p class="text-sm text-gray-500 mt-1">
-        Rekap nilai akhir mata pelajaran per semester. Detail TP dan LM dapat dilihat melalui tombol detail nilai.
+        Rekap nilai akhir mata pelajaran per semester. Detail TP, LM, dan KKM dapat dilihat melalui tombol detail nilai.
     </p>
 </div>
 
@@ -38,7 +32,6 @@
     </div>
 @endif
 
-{{-- Grafik perkembangan nilai --}}
 @if(count($chartLabels) > 0)
     <div class="bg-white rounded-xl shadow border mb-6">
         <div class="px-5 py-4 border-b">
@@ -54,7 +47,6 @@
     </div>
 @endif
 
-{{-- Accordion semester --}}
 <div class="space-y-4">
     @forelse($groups as $idx => $group)
         @php
@@ -65,7 +57,6 @@
         @endphp
 
         <div class="bg-white rounded-xl shadow border overflow-hidden">
-            {{-- Header accordion --}}
             <button type="button"
                     id="{{ $accordionId }}"
                     onclick="toggleAccordion('{{ $collapseId }}', '{{ $accordionId }}')"
@@ -102,7 +93,6 @@
                 </div>
             </button>
 
-            {{-- Isi accordion --}}
             <div id="{{ $collapseId }}" class="{{ $isOpen ? '' : 'hidden' }}">
                 <div class="px-5 py-3 border-t border-b bg-gray-50 flex items-center justify-between gap-3 flex-wrap">
                     <div class="text-sm text-gray-600">
@@ -143,8 +133,6 @@
                                 <th class="px-4 py-3 text-left">Mata Pelajaran</th>
                                 <th class="px-4 py-3 text-left">Guru</th>
                                 <th class="px-4 py-3 text-center">Nilai Akhir</th>
-                                <th class="px-4 py-3 text-center">KKM</th>
-                                <th class="px-4 py-3 text-center">Status Nilai</th>
                                 <th class="px-4 py-3 text-center">Predikat</th>
                             </tr>
                         </thead>
@@ -153,8 +141,6 @@
                             @forelse($rows as $i => $row)
                                 @php
                                     $nilaiAkhir = $row->nilai_akhir ?? $row->rata ?? null;
-                                    $kkm = $row->kkm ?? null;
-                                    $statusPenilaian = $row->status_penilaian ?? 'draft';
                                     $status = $row->status ?? null;
                                 @endphp
 
@@ -177,22 +163,6 @@
                                         {{ $fmtNilai($nilaiAkhir) }}
                                     </td>
 
-                                    <td class="px-4 py-3 text-center font-medium text-amber-700">
-                                        {{ $fmtKkm($kkm) }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-center">
-                                        @if($statusPenilaian === 'final')
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
-                                                Final
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-100">
-                                                Sementara
-                                            </span>
-                                        @endif
-                                    </td>
-
                                     <td class="px-4 py-3 text-center">
                                         @if($status === 'tuntas')
                                             <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100">
@@ -211,7 +181,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">
                                         Tidak ada data nilai pada semester ini.
                                     </td>
                                 </tr>
