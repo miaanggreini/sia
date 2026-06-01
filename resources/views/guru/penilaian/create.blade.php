@@ -52,6 +52,36 @@
 
     $semesterLabel = $semesterAktif ?? ($taAktif->semester ?? '');
     $tahunAjaranId = $taAktif->id ?? '';
+
+    /*
+      Cek apakah LM yang sedang dibuka punya data nilai aktif.
+      Kalau semua TP dan nilai LM kosong/0, maka bobot lama di localStorage tidak boleh ditampilkan.
+      Ini mencegah kasus: nilai sudah dihapus dari database, tetapi bobot lama masih muncul dari browser.
+    */
+    $hasActiveLmData = false;
+
+    foreach ($siswa as $s) {
+      $row = $nilai[$s->id] ?? null;
+
+      if (!$row) {
+        continue;
+      }
+
+      $lmValues = [
+        data_get($row, "{$activePrefix}_tp1"),
+        data_get($row, "{$activePrefix}_tp2"),
+        data_get($row, "{$activePrefix}_tp3"),
+        data_get($row, "{$activePrefix}_tp4"),
+        data_get($row, "{$activePrefix}_nilai"),
+      ];
+
+      foreach ($lmValues as $value) {
+        if ($value !== null && $value !== '' && (float) $value > 0) {
+          $hasActiveLmData = true;
+          break 2;
+        }
+      }
+    }
   @endphp
 
   {{-- HEADER RINGKAS --}}
@@ -148,7 +178,8 @@
         data-mapel-id="{{ $jadwal->mata_pelajaran_id }}"
         data-komponen="{{ $komponen }}"
         data-semester="{{ $semesterLabel }}"
-        data-tahun-ajaran-id="{{ $tahunAjaranId }}">
+        data-tahun-ajaran-id="{{ $tahunAjaranId }}"
+        data-has-lm-data="{{ $hasActiveLmData ? '1' : '0' }}">
     @csrf
 
     <input type="hidden" name="jadwal_id" value="{{ $jadwal->id }}">
@@ -605,6 +636,7 @@
       const semesterRaw = String(formNilai.dataset.semester || '');
       const semesterLower = semesterRaw.toLowerCase();
       const tahunAjaranId = String(formNilai.dataset.tahunAjaranId || '');
+      const hasLmData = String(formNilai.dataset.hasLmData || '0') === '1';
 
       function getExcelStorageKeys() {
         return [
@@ -647,6 +679,34 @@
         }
 
         return null;
+      }
+
+      function purgeBobotLocalStorageUntukLmKosong() {
+        const keysToDelete = new Set();
+
+        getExcelStorageKeys().forEach(function(key) {
+          keysToDelete.add(key);
+        });
+
+        keysToDelete.add(getManualStorageKey());
+
+        const prefix = ['bobot_penilaian', jadwalId, tahunAjaranId].join('_');
+
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+
+          if (
+            key &&
+            key.startsWith(prefix) &&
+            key.toUpperCase().endsWith('_' + komponen)
+          ) {
+            keysToDelete.add(key);
+          }
+        }
+
+        keysToDelete.forEach(function(key) {
+          localStorage.removeItem(key);
+        });
       }
 
       function toNumber(value) {
@@ -726,6 +786,11 @@
       }
 
       function loadKonfigurasiBobot() {
+        if (!hasLmData) {
+          purgeBobotLocalStorageUntukLmKosong();
+          return;
+        }
+
         let saved = findExcelConfigFromLocalStorage();
 
         if (!saved) {
@@ -744,11 +809,11 @@
           setSelectValue('jenis_tp3', payload.jenis_tp3 || 'teori');
           setSelectValue('jenis_tp4', payload.jenis_tp4 || 'teori');
 
-          if (bobotPraktikInput && payload.bobot_praktik !== undefined && payload.bobot_praktik !== null) {
+          if (bobotPraktikInput && payload.bobot_praktik !== undefined && payload.bobot_praktik !== null && payload.bobot_praktik !== '') {
             bobotPraktikInput.value = cleanBobotDisplay(toNumber(payload.bobot_praktik));
           }
 
-          if (bobotTeoriInput && payload.bobot_teori !== undefined && payload.bobot_teori !== null) {
+          if (bobotTeoriInput && payload.bobot_teori !== undefined && payload.bobot_teori !== null && payload.bobot_teori !== '') {
             bobotTeoriInput.value = cleanBobotDisplay(toNumber(payload.bobot_teori));
           }
         } catch (error) {
