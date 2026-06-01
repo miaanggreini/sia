@@ -24,7 +24,7 @@
       'LM4' => 'lm4',
     ];
 
-    $komponen = $komponen ?? 'LM1';
+    $komponen = strtoupper($komponen ?? 'LM1');
     $activePrefix = $prefixMap[$komponen] ?? 'lm1';
 
     $oldJenisTp1 = old('jenis_tp1', request('jenis_tp1', 'praktik'));
@@ -49,6 +49,9 @@
     if (!$nextLm && (($progress['missing'][$komponen] ?? 0) > 0)) {
       $nextLm = $komponen;
     }
+
+    $semesterLabel = $semesterAktif ?? ($taAktif->semester ?? '');
+    $tahunAjaranId = $taAktif->id ?? '';
   @endphp
 
   {{-- HEADER RINGKAS --}}
@@ -59,7 +62,7 @@
           Input Nilai {{ $komponen }}
         </h1>
 
-        <div class="mt-2 flex flex-wrap gap-2 text-sm">
+        <div class="mt-3 flex flex-wrap gap-2 text-sm">
           <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
             Kelas: <strong>{{ $namaRombel }}</strong>
           </span>
@@ -73,11 +76,11 @@
           </span>
 
           <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700">
-            Semester: <strong>{{ ucfirst($semesterAktif ?? '-') }}</strong>
+            Semester: <strong>{{ ucfirst($semesterLabel ?: '-') }}</strong>
           </span>
 
           <span class="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700">
-            KKM: <strong>{{ isset($kkm) && $kkm !== null ? number_format($kkm, 0) : '-' }}</strong>
+            KKM: <strong>{{ isset($kkm) && $kkm !== null ? number_format((float) $kkm, 0) : '-' }}</strong>
           </span>
         </div>
 
@@ -144,8 +147,8 @@
         data-rombel-id="{{ $jadwal->rombel_id }}"
         data-mapel-id="{{ $jadwal->mata_pelajaran_id }}"
         data-komponen="{{ $komponen }}"
-        data-semester="{{ $semesterAktif ?? '' }}"
-        data-tahun-ajaran-id="{{ $taAktif->id ?? '' }}">
+        data-semester="{{ $semesterLabel }}"
+        data-tahun-ajaran-id="{{ $tahunAjaranId }}">
     @csrf
 
     <input type="hidden" name="jadwal_id" value="{{ $jadwal->id }}">
@@ -352,21 +355,6 @@
         @endif
 
         @unless($isFinal)
-          <a href="{{ route('guru.penilaian.template-excel', [
-              'rombel_id' => $jadwal->rombel_id,
-              'mata_pelajaran_id' => $jadwal->mata_pelajaran_id,
-              'komponen' => $komponen,
-            ]) }}"
-            class="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700">
-            Download Template Excel
-          </a>
-
-          <button type="button"
-                  onclick="openModalImportExcel()"
-                  class="px-4 py-2 rounded-md bg-amber-500 text-white hover:bg-amber-600">
-            Import Excel
-          </button>
-
           <button type="submit" id="btnSimpanNilai" class="px-5 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
             Simpan Nilai
           </button>
@@ -374,70 +362,6 @@
       </div>
     </div>
   </form>
-
-  {{-- MODAL IMPORT EXCEL --}}
-  @unless($isFinal)
-    <div id="modalImportExcel"
-         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4">
-
-      <div class="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden animate-modalFinalisasi">
-        <div class="px-6 py-5 border-b">
-          <h3 class="text-lg font-semibold text-gray-900">
-            Import Nilai dari Excel
-          </h3>
-
-          <p class="mt-1 text-sm text-gray-500">
-            Upload file template Excel yang sudah diisi. Pastikan struktur kolom tidak diubah.
-          </p>
-        </div>
-
-        <form method="POST"
-              action="{{ route('guru.penilaian.import-excel') }}"
-              enctype="multipart/form-data"
-              class="px-6 py-5 space-y-4">
-          @csrf
-
-          <input type="hidden" name="jadwal_id" value="{{ $jadwal->id }}">
-          <input type="hidden" name="rombel_id" value="{{ $jadwal->rombel_id }}">
-          <input type="hidden" name="mata_pelajaran_id" value="{{ $jadwal->mata_pelajaran_id }}">
-          <input type="hidden" name="komponen" value="{{ $komponen }}">
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              File Excel
-            </label>
-
-            <input type="file"
-                   name="file_excel"
-                   accept=".xlsx,.xls"
-                   required
-                   class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-
-            <p class="text-xs text-gray-500 mt-2">
-              Gunakan file dari tombol Download Template Excel agar formatnya sesuai.
-            </p>
-          </div>
-
-          <div class="rounded-lg bg-yellow-50 border border-yellow-100 px-4 py-3 text-sm text-yellow-800">
-            Nilai 0 pada Excel dianggap kosong/tidak digunakan. Sistem akan menghitung ulang nilai LM di server.
-          </div>
-
-          <div class="flex justify-end gap-2 border-t pt-4">
-            <button type="button"
-                    onclick="closeModalImportExcel()"
-                    class="px-4 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-50">
-              Batal
-            </button>
-
-            <button type="submit"
-                    class="px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600">
-              Upload & Import
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  @endunless
 
   {{-- RINGKASAN --}}
   <div class="bg-white rounded-lg shadow border mb-6">
@@ -615,7 +539,7 @@
     }
   </style>
 
-  {{-- SCRIPT FINALISASI + IMPORT EXCEL + BOBOT --}}
+  {{-- SCRIPT FINALISASI + BOBOT LOCALSTORAGE --}}
   <script>
     function openModalFinalisasi() {
       const modal = document.getElementById('modalFinalisasi');
@@ -649,46 +573,15 @@
       }
     }
 
-    function openModalImportExcel() {
-      const modal = document.getElementById('modalImportExcel');
-
-      if (!modal) {
-        return;
-      }
-
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      document.body.classList.add('overflow-hidden');
-    }
-
-    function closeModalImportExcel() {
-      const modal = document.getElementById('modalImportExcel');
-
-      if (!modal) {
-        return;
-      }
-
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      document.body.classList.remove('overflow-hidden');
-    }
-
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
         closeModalFinalisasi();
-        closeModalImportExcel();
       }
     });
 
     document.getElementById('modalFinalisasi')?.addEventListener('click', function(e) {
       if (e.target === this) {
         closeModalFinalisasi();
-      }
-    });
-
-    document.getElementById('modalImportExcel')?.addEventListener('click', function(e) {
-      if (e.target === this) {
-        closeModalImportExcel();
       }
     });
 
@@ -701,23 +594,63 @@
       const bobotWarning = document.getElementById('bobotWarning');
       const btnSimpan = document.getElementById('btnSimpanNilai');
 
-      function getStorageKey() {
-        if (!formNilai) {
-          return null;
+      if (!formNilai) {
+        return;
+      }
+
+      const jadwalId = String(formNilai.dataset.jadwalId || '');
+      const rombelId = String(formNilai.dataset.rombelId || '');
+      const mapelId = String(formNilai.dataset.mapelId || '');
+      const komponen = String(formNilai.dataset.komponen || '').toUpperCase();
+      const semesterRaw = String(formNilai.dataset.semester || '');
+      const semesterLower = semesterRaw.toLowerCase();
+      const tahunAjaranId = String(formNilai.dataset.tahunAjaranId || '');
+
+      function getExcelStorageKeys() {
+        return [
+          ['bobot_penilaian', jadwalId, tahunAjaranId, semesterRaw, komponen].join('_'),
+          ['bobot_penilaian', jadwalId, tahunAjaranId, semesterLower, komponen].join('_'),
+        ];
+      }
+
+      function getManualStorageKey() {
+        return `sia_penilaian_bobot_${tahunAjaranId}_${semesterRaw}_${jadwalId}_${rombelId}_${mapelId}_${komponen}`;
+      }
+
+      function findExcelConfigFromLocalStorage() {
+        const keys = getExcelStorageKeys();
+
+        for (const key of keys) {
+          const saved = localStorage.getItem(key);
+
+          if (saved) {
+            return saved;
+          }
         }
 
-        const jadwalId = formNilai.dataset.jadwalId || '';
-        const rombelId = formNilai.dataset.rombelId || '';
-        const mapelId = formNilai.dataset.mapelId || '';
-        const komponen = formNilai.dataset.komponen || '';
-        const semester = formNilai.dataset.semester || '';
-        const tahunAjaranId = formNilai.dataset.tahunAjaranId || '';
+        const prefix = ['bobot_penilaian', jadwalId, tahunAjaranId].join('_');
 
-        return `sia_penilaian_bobot_${tahunAjaranId}_${semester}_${jadwalId}_${rombelId}_${mapelId}_${komponen}`;
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+
+          if (
+            key &&
+            key.startsWith(prefix) &&
+            key.toUpperCase().endsWith('_' + komponen)
+          ) {
+            const saved = localStorage.getItem(key);
+
+            if (saved) {
+              return saved;
+            }
+          }
+        }
+
+        return null;
       }
 
       function toNumber(value) {
-        const parsed = parseFloat(value);
+        const parsed = parseFloat(String(value ?? '').replace(',', '.'));
         return Number.isFinite(parsed) ? parsed : 0;
       }
 
@@ -743,33 +676,61 @@
         return String(parseFloat(value.toFixed(2)));
       }
 
-      function saveKonfigurasiBobot() {
-        const storageKey = getStorageKey();
+      function getJenisValue(tp, fallback) {
+        return document.querySelector(`[name="jenis_tp${tp}"]`)?.value || fallback;
+      }
 
-        if (!storageKey) {
+      function makePayload() {
+        return {
+          jenis_tp1: getJenisValue(1, 'praktik'),
+          jenis_tp2: getJenisValue(2, 'praktik'),
+          jenis_tp3: getJenisValue(3, 'teori'),
+          jenis_tp4: getJenisValue(4, 'teori'),
+          bobot_praktik: bobotPraktikInput?.value || '',
+          bobot_teori: bobotTeoriInput?.value || '',
+          saved_at: new Date().toISOString()
+        };
+      }
+
+      function saveKonfigurasiBobot() {
+        const payload = makePayload();
+        const manualKey = getManualStorageKey();
+
+        localStorage.setItem(manualKey, JSON.stringify(payload));
+
+        getExcelStorageKeys().forEach(function(key) {
+          localStorage.setItem(key, JSON.stringify({
+            jadwal_id: jadwalId,
+            tahun_ajaran_id: tahunAjaranId,
+            semester: semesterRaw,
+            komponen: komponen,
+            ...payload
+          }));
+        });
+      }
+
+      function setSelectValue(name, value) {
+        const select = document.querySelector(`[name="${name}"]`);
+
+        if (!select || !value) {
           return;
         }
 
-        const payload = {
-          jenis_tp1: document.querySelector('[name="jenis_tp1"]')?.value || 'praktik',
-          jenis_tp2: document.querySelector('[name="jenis_tp2"]')?.value || 'praktik',
-          jenis_tp3: document.querySelector('[name="jenis_tp3"]')?.value || 'teori',
-          jenis_tp4: document.querySelector('[name="jenis_tp4"]')?.value || 'teori',
-          bobot_praktik: bobotPraktikInput?.value || '',
-          bobot_teori: bobotTeoriInput?.value || '',
-        };
+        const targetValue = String(value).toLowerCase();
 
-        localStorage.setItem(storageKey, JSON.stringify(payload));
+        Array.from(select.options).forEach(function(option) {
+          if (String(option.value).toLowerCase() === targetValue) {
+            select.value = option.value;
+          }
+        });
       }
 
       function loadKonfigurasiBobot() {
-        const storageKey = getStorageKey();
+        let saved = findExcelConfigFromLocalStorage();
 
-        if (!storageKey) {
-          return;
+        if (!saved) {
+          saved = localStorage.getItem(getManualStorageKey());
         }
-
-        const saved = localStorage.getItem(storageKey);
 
         if (!saved) {
           return;
@@ -778,36 +739,20 @@
         try {
           const payload = JSON.parse(saved);
 
-          const jenisTp1 = document.querySelector('[name="jenis_tp1"]');
-          const jenisTp2 = document.querySelector('[name="jenis_tp2"]');
-          const jenisTp3 = document.querySelector('[name="jenis_tp3"]');
-          const jenisTp4 = document.querySelector('[name="jenis_tp4"]');
+          setSelectValue('jenis_tp1', payload.jenis_tp1 || 'praktik');
+          setSelectValue('jenis_tp2', payload.jenis_tp2 || 'praktik');
+          setSelectValue('jenis_tp3', payload.jenis_tp3 || 'teori');
+          setSelectValue('jenis_tp4', payload.jenis_tp4 || 'teori');
 
-          if (jenisTp1 && payload.jenis_tp1) {
-            jenisTp1.value = payload.jenis_tp1;
+          if (bobotPraktikInput && payload.bobot_praktik !== undefined && payload.bobot_praktik !== null) {
+            bobotPraktikInput.value = cleanBobotDisplay(toNumber(payload.bobot_praktik));
           }
 
-          if (jenisTp2 && payload.jenis_tp2) {
-            jenisTp2.value = payload.jenis_tp2;
-          }
-
-          if (jenisTp3 && payload.jenis_tp3) {
-            jenisTp3.value = payload.jenis_tp3;
-          }
-
-          if (jenisTp4 && payload.jenis_tp4) {
-            jenisTp4.value = payload.jenis_tp4;
-          }
-
-          if (bobotPraktikInput && payload.bobot_praktik !== undefined) {
-            bobotPraktikInput.value = payload.bobot_praktik;
-          }
-
-          if (bobotTeoriInput && payload.bobot_teori !== undefined) {
-            bobotTeoriInput.value = payload.bobot_teori;
+          if (bobotTeoriInput && payload.bobot_teori !== undefined && payload.bobot_teori !== null) {
+            bobotTeoriInput.value = cleanBobotDisplay(toNumber(payload.bobot_teori));
           }
         } catch (error) {
-          localStorage.removeItem(storageKey);
+          console.warn('Gagal membaca konfigurasi bobot:', error);
         }
       }
 
