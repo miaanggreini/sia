@@ -130,6 +130,7 @@
 
         .signature-table {
             margin-top: 18px;
+            page-break-inside: avoid;
         }
 
         .signature-table td {
@@ -138,8 +139,7 @@
         }
 
         .signature-box {
-            width: 230px;
-            float: right;
+            width: 100%;
             text-align: center;
         }
 
@@ -153,7 +153,6 @@
         .ttd-img {
             max-height: 64px;
             max-width: 180px;
-            object-fit: contain;
         }
 
         .nama-ttd {
@@ -389,7 +388,11 @@
 
     <table class="signature-table">
         <tr>
-            <td width="65%"></td>
+            <td width="65%">
+                <div class="footer-note">
+                    Dicetak melalui Sistem Informasi Akademik {{ $namaSekolah }} pada {{ $tanggalCetakLabel }}.
+                </div>
+            </td>
             <td width="35%">
                 <div class="signature-box">
                     Temanggung, {{ $tanggalCetakLabel }}<br>
@@ -397,8 +400,8 @@
                     Wali Kelas {{ $kelas }}
 
                     <div class="ttd-area">
-                        @if(!empty($ttdWaliKelasPath) && file_exists($ttdWaliKelasPath))
-                            <img src="{{ $ttdWaliKelasPath }}" class="ttd-img" alt="Tanda tangan wali kelas">
+                        @if(!empty($ttdWaliKelasSrc))
+                            <img src="{{ $ttdWaliKelasSrc }}" class="ttd-img" alt="Tanda tangan wali kelas">
                         @endif
                     </div>
 
@@ -408,9 +411,5 @@
             </td>
         </tr>
     </table>
-
-    <div class="footer-note">
-        Dicetak melalui Sistem Informasi Akademik {{ $namaSekolah }} pada {{ $tanggalCetakLabel }}.
-    </div>
 </body>
 </html>
