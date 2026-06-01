@@ -655,13 +655,23 @@ public function importExcel(Request $request)
 {
     $data = $request->validate([
         'jadwal_id'  => ['required', 'integer'],
-        'file_excel' => ['required', 'file', 'mimes:xlsx,xls'],
+        'file_excel' => ['required', 'file', 'mimes:xlsx,xls', 'max:10240'],
+    ], [
+        'jadwal_id.required'   => 'Data jadwal tidak ditemukan.',
+        'jadwal_id.integer'    => 'Data jadwal tidak valid.',
+
+        'file_excel.required'  => 'File Excel wajib diunggah.',
+        'file_excel.file'      => 'File yang diunggah tidak valid.',
+        'file_excel.mimes'     => 'File yang diunggah harus berformat Excel (.xlsx atau .xls).',
+        'file_excel.max'       => 'Ukuran file Excel maksimal 10 MB.',
     ]);
 
     $taAktif = $this->getTahunAjaranAktif();
 
     if (!$taAktif) {
-        return back()->withErrors(['msg' => 'Tahun ajaran aktif belum diatur.']);
+        return back()->withErrors([
+            'msg' => 'Tahun ajaran aktif belum diatur.',
+        ]);
     }
 
     $statusInfo = $this->getStatusPenilaianSemester(
@@ -670,8 +680,10 @@ public function importExcel(Request $request)
         $taAktif->semester
     );
 
-    if ($statusInfo['status'] === 'final') {
-        return back()->withErrors(['msg' => 'Nilai semester ini sudah difinalisasi dan terkunci.']);
+    if (($statusInfo['status'] ?? 'draft') === 'final') {
+        return back()->withErrors([
+            'msg' => 'Nilai semester ini sudah difinalisasi dan terkunci.',
+        ]);
     }
 
     $guru = auth()->user()->guru
@@ -718,7 +730,13 @@ public function importExcel(Request $request)
         }
     }
 
-    $spreadsheet = IOFactory::load($request->file('file_excel')->getRealPath());
+    try {
+        $spreadsheet = IOFactory::load($request->file('file_excel')->getRealPath());
+    } catch (\Throwable $e) {
+        return back()->withErrors([
+            'file_excel' => 'File Excel tidak dapat dibaca. Pastikan file menggunakan format template dari sistem dan tidak rusak.',
+        ]);
+    }
 
     $lmList = [
         'LM1' => 'lm1',
@@ -762,12 +780,12 @@ public function importExcel(Request $request)
             }
 
             $bobotUntukLocalStorage[$lm] = [
-                'jenis_tp1'      => $jenisTp['tp1'] ?? 'praktik',
-                'jenis_tp2'      => $jenisTp['tp2'] ?? 'praktik',
-                'jenis_tp3'      => $jenisTp['tp3'] ?? 'teori',
-                'jenis_tp4'      => $jenisTp['tp4'] ?? 'teori',
-                'bobot_praktik'  => $bobotPraktik,
-                'bobot_teori'    => $bobotTeori,
+                'jenis_tp1'     => $jenisTp['tp1'] ?? 'praktik',
+                'jenis_tp2'     => $jenisTp['tp2'] ?? 'praktik',
+                'jenis_tp3'     => $jenisTp['tp3'] ?? 'teori',
+                'jenis_tp4'     => $jenisTp['tp4'] ?? 'teori',
+                'bobot_praktik' => $bobotPraktik,
+                'bobot_teori'   => $bobotTeori,
             ];
 
             $highestRow = $sheet->getHighestRow();
@@ -794,7 +812,10 @@ public function importExcel(Request $request)
                 $tp3 = $this->normalizeNilai($sheet->getCell("F{$row}")->getCalculatedValue());
                 $tp4 = $this->normalizeNilai($sheet->getCell("G{$row}")->getCalculatedValue());
 
-                $allNull = $tp1 === null && $tp2 === null && $tp3 === null && $tp4 === null;
+                $allNull = $tp1 === null
+                    && $tp2 === null
+                    && $tp3 === null
+                    && $tp4 === null;
 
                 if ($allNull) {
                     continue;
@@ -849,7 +870,9 @@ public function importExcel(Request $request)
                 $statusKetuntasan = 'tidak_tuntas';
 
                 if ($nilaiAkhir !== null) {
-                    $statusKetuntasan = $nilaiAkhir >= (float) $kkm ? 'tuntas' : 'tidak_tuntas';
+                    $statusKetuntasan = $nilaiAkhir >= (float) $kkm
+                        ? 'tuntas'
+                        : 'tidak_tuntas';
                 }
 
                 DB::table('nilai')
@@ -880,17 +903,17 @@ public function importExcel(Request $request)
         ]);
     }
 
-return redirect()
-    ->route('guru.penilaian.index')
-    ->with('success', "Import Excel berhasil. {$jumlahImport} data nilai diperbarui dari LM1 sampai LM4.")
-    ->with('excel_bobot_config', [
-        'tahun_ajaran_id'      => (int) $taAktif->id,
-        'semester'             => $taAktif->semester,
-        'jadwal_id'            => (int) $jadwal->id,
-        'rombel_id'            => (int) $jadwal->rombel_id,
-        'mata_pelajaran_id'    => (int) $jadwal->mata_pelajaran_id,
-        'bobot'                => $bobotUntukLocalStorage,
-    ]);
+    return redirect()
+        ->route('guru.penilaian.index')
+        ->with('success', "Import Excel berhasil. {$jumlahImport} data nilai diperbarui dari LM1 sampai LM4.")
+        ->with('excel_bobot_config', [
+            'tahun_ajaran_id'   => (int) $taAktif->id,
+            'semester'          => $taAktif->semester,
+            'jadwal_id'         => (int) $jadwal->id,
+            'rombel_id'         => (int) $jadwal->rombel_id,
+            'mata_pelajaran_id' => (int) $jadwal->mata_pelajaran_id,
+            'bobot'             => $bobotUntukLocalStorage,
+        ]);
 }
 
     public function finalize(Request $request)
