@@ -14,7 +14,8 @@
         .header-table,
         .info-table,
         .nilai-table,
-        .ekskul-table {
+        .ekskul-table,
+        .signature-table {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
@@ -119,13 +120,81 @@
             text-align: right !important;
         }
 
-        .footer-note {
-            margin-top: 18px;
+        .validity-note {
+            margin-top: 10px;
+            padding: 6px 8px;
+            border: 1px solid #000;
             font-size: 10px;
+            line-height: 1.4;
+        }
+
+        .signature-table {
+            margin-top: 18px;
+        }
+
+        .signature-table td {
+            vertical-align: top;
+            font-size: 11px;
+        }
+
+        .signature-box {
+            width: 230px;
+            float: right;
+            text-align: center;
+        }
+
+        .ttd-area {
+            height: 64px;
+            margin-top: 4px;
+            margin-bottom: 2px;
+            text-align: center;
+        }
+
+        .ttd-img {
+            max-height: 64px;
+            max-width: 180px;
+            object-fit: contain;
+        }
+
+        .nama-ttd {
+            font-weight: bold;
+            text-decoration: underline;
+            margin-top: 2px;
+        }
+
+        .nip-ttd {
+            margin-top: 2px;
+            font-size: 10px;
+        }
+
+        .footer-note {
+            margin-top: 14px;
+            font-size: 10px;
+            line-height: 1.4;
         }
     </style>
 </head>
 <body>
+    @php
+        $tanggalCetakLabel = isset($tanggalCetak)
+            ? \Illuminate\Support\Carbon::parse($tanggalCetak)->translatedFormat('d F Y')
+            : now()->translatedFormat('d F Y');
+
+        $waliNama = $waliKelas->nama ?? 'Wali Kelas';
+
+        $waliIdentitas = '-';
+
+        if (!empty($waliKelas->nip)) {
+            $waliIdentitas = 'NIP. ' . $waliKelas->nip;
+        } elseif (!empty($waliKelas->nuptk)) {
+            $waliIdentitas = 'NUPTK. ' . $waliKelas->nuptk;
+        }
+
+        $namaSiswa = $siswa->nama ?? '-';
+        $nisSiswa = $siswa->nis ?? '-';
+        $nisnSiswa = $siswa->nisn ?? '-';
+    @endphp
+
     <table class="header-table">
         <tr>
             <td width="14%">
@@ -155,7 +224,7 @@
         <tr>
             <td width="15%">Nama</td>
             <td width="2%">:</td>
-            <td width="33%">{{ $siswa->nama }}</td>
+            <td width="33%">{{ $namaSiswa }}</td>
 
             <td width="15%">Kelas</td>
             <td width="2%">:</td>
@@ -164,7 +233,7 @@
         <tr>
             <td>NIS</td>
             <td>:</td>
-            <td>{{ $siswa->nis }}</td>
+            <td>{{ $nisSiswa }}</td>
 
             <td>Semester</td>
             <td>:</td>
@@ -173,7 +242,7 @@
         <tr>
             <td>NISN</td>
             <td>:</td>
-            <td>{{ $siswa->nisn ?? '-' }}</td>
+            <td>{{ $nisnSiswa }}</td>
 
             <td>Tahun Ajaran</td>
             <td>:</td>
@@ -234,6 +303,7 @@
                     $namaMapel = $row->mapel ?? $row->nama_mapel ?? $row->mata_pelajaran ?? '-';
                     $predikat = ($row->status ?? null) === 'tuntas' ? 'Tuntas' : 'Tidak Tuntas';
                 @endphp
+
                 <tr>
                     <td>{{ $row->no }}</td>
                     <td class="text-left">{{ $namaMapel }}</td>
@@ -311,8 +381,36 @@
         </tbody>
     </table>
 
+    <div class="validity-note">
+        Dokumen ini merupakan laporan nilai yang dihasilkan melalui Sistem Informasi Akademik
+        {{ $namaSekolah }}. Nilai pada dokumen ini merupakan nilai yang telah difinalisasi
+        oleh guru mata pelajaran dan diketahui oleh wali kelas.
+    </div>
+
+    <table class="signature-table">
+        <tr>
+            <td width="65%"></td>
+            <td width="35%">
+                <div class="signature-box">
+                    Temanggung, {{ $tanggalCetakLabel }}<br>
+                    Mengetahui,<br>
+                    Wali Kelas {{ $kelas }}
+
+                    <div class="ttd-area">
+                        @if(!empty($ttdWaliKelasPath) && file_exists($ttdWaliKelasPath))
+                            <img src="{{ $ttdWaliKelasPath }}" class="ttd-img" alt="Tanda tangan wali kelas">
+                        @endif
+                    </div>
+
+                    <div class="nama-ttd">{{ $waliNama }}</div>
+                    <div class="nip-ttd">{{ $waliIdentitas }}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
     <div class="footer-note">
-        Dicetak melalui Sistem Informasi Akademik {{ $namaSekolah }}.
+        Dicetak melalui Sistem Informasi Akademik {{ $namaSekolah }} pada {{ $tanggalCetakLabel }}.
     </div>
 </body>
 </html>
