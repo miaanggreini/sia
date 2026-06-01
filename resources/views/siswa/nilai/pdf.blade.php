@@ -380,12 +380,6 @@
         </tbody>
     </table>
 
-    <div class="validity-note">
-        Dokumen ini merupakan laporan nilai yang dihasilkan melalui Sistem Informasi Akademik
-        {{ $namaSekolah }}. Nilai pada dokumen ini merupakan nilai yang telah difinalisasi
-        oleh guru mata pelajaran dan diketahui oleh wali kelas.
-    </div>
-
     <table class="signature-table">
         <tr>
             <td width="65%">
