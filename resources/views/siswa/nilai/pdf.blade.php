@@ -393,11 +393,13 @@
                     Mengetahui,<br>
                     Wali Kelas {{ $kelas }}
 
-                    <div class="ttd-area">
-                        @if(!empty($ttdWaliKelasSrc))
-                            <img src="{{ $ttdWaliKelasSrc }}" class="ttd-img" alt="Tanda tangan wali kelas">
-                        @endif
-                    </div>
+<div class="ttd-area">
+    @if(!empty($ttdWaliKelasSrc))
+        <img src="{!! $ttdWaliKelasSrc !!}" class="ttd-img" alt="Tanda tangan wali kelas">
+    @elseif(!empty($ttdWaliKelasPath) && file_exists($ttdWaliKelasPath))
+        <img src="{{ $ttdWaliKelasPath }}" class="ttd-img" alt="Tanda tangan wali kelas">
+    @endif
+</div>
 
                     <div class="nama-ttd">{{ $waliNama }}</div>
                     <div class="nip-ttd">{{ $waliIdentitas }}</div>

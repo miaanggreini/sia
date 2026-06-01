@@ -169,7 +169,8 @@ class NilaiController extends Controller
             $tingkat
         );
 
-        $ttdWaliKelasPath = $this->resolvePublicStoragePath($waliKelas->ttd_path ?? null);
+$ttdWaliKelasPath = $this->resolvePublicStoragePath($waliKelas->ttd_path ?? null);
+$ttdWaliKelasSrc  = $this->imageToDataUri($ttdWaliKelasPath);
 
         $logoPath = public_path('images/logo-sman2.png');
 
@@ -181,10 +182,10 @@ class NilaiController extends Controller
             'semester'          => $semester,
             'tahunAjaran'       => $tahunAjaran,
             'kelas'             => $kelas,
-            'waliKelas'         => $waliKelas,
-            'ttdWaliKelasPath'  => $ttdWaliKelasPath,
-            'tanggalCetak'      => now(),
-            'namaSekolah'       => 'SMA NEGERI 2 TEMANGGUNG',
+'waliKelas'         => $waliKelas,
+'ttdWaliKelasPath'  => $ttdWaliKelasPath,
+'ttdWaliKelasSrc'   => $ttdWaliKelasSrc,
+'tanggalCetak'      => now(),            'namaSekolah'       => 'SMA NEGERI 2 TEMANGGUNG',
             'alamatSekolah'     => 'Jalan Pahlawan, Giyanti, Temanggung, Jawa Tengah',
             'logoPath'          => $logoPath,
         ])->setPaper('a4', 'landscape');
@@ -530,7 +531,7 @@ class NilaiController extends Controller
     return null;
 }
 
-    private function resolvePublicStoragePath(?string $path): ?string
+   private function resolvePublicStoragePath(?string $path): ?string
 {
     if (!$path) {
         return null;
@@ -553,4 +554,29 @@ class NilaiController extends Controller
 
     return null;
 }
+
+private function imageToDataUri(?string $fullPath): ?string
+{
+    if (!$fullPath || !file_exists($fullPath) || !is_readable($fullPath)) {
+        return null;
+    }
+
+    $extension = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+
+    $mime = match ($extension) {
+        'jpg', 'jpeg' => 'image/jpeg',
+        'png'         => 'image/png',
+        'webp'        => 'image/webp',
+        default       => 'image/jpeg',
+    };
+
+    $contents = file_get_contents($fullPath);
+
+    if ($contents === false || $contents === '') {
+        return null;
+    }
+
+    return 'data:' . $mime . ';base64,' . base64_encode($contents);
 }
+}
+
