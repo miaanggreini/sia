@@ -3,14 +3,17 @@
 
 @php
   $fotoPath = isset($guru->foto) && $guru->foto
-      ? asset('storage/'.ltrim($guru->foto,'/'))
+      ? asset('storage/' . ltrim($guru->foto, '/'))
+      : null;
+
+  $ttdPath = isset($guru->ttd_path) && $guru->ttd_path
+      ? asset('storage/' . ltrim($guru->ttd_path, '/'))
       : null;
 @endphp
 
 <div class="bg-white rounded-2xl shadow border overflow-hidden">
   <div class="p-6 bg-gray-50">
 
-    {{-- ALERT ERROR GLOBAL --}}
     @if ($errors->any())
       <div class="mb-5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
         <div class="font-semibold">Data belum valid.</div>
@@ -36,13 +39,13 @@
                 <img id="fotoPreview"
                      src="{{ $fotoPath }}"
                      class="h-full w-full object-cover"
-                     alt="">
+                     alt="Foto guru">
                 <span id="fotoPlaceholder" class="hidden">Belum ada foto</span>
               @else
                 <img id="fotoPreview"
                      src=""
                      class="h-full w-full object-cover hidden"
-                     alt="">
+                     alt="Foto guru">
                 <span id="fotoPlaceholder">Belum ada foto</span>
               @endif
             </div>
@@ -58,6 +61,50 @@
 
             <p id="foto_inline_error" class="mt-1 text-sm text-rose-600 hidden"></p>
             @error('foto') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
+          </div>
+
+          {{-- Tanda Tangan Digital --}}
+          <div class="p-4 border border-emerald-200 rounded-xl bg-white shadow-sm inline-block">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Tanda Tangan Digital
+            </label>
+
+            <div id="ttdPreviewWrapper"
+                 class="h-28 w-48 rounded-lg border border-emerald-100 shadow-sm mb-3 overflow-hidden bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
+              @if($ttdPath)
+                <img id="ttdPreview"
+                     src="{{ $ttdPath }}"
+                     class="h-full w-full object-contain"
+                     alt="Tanda tangan guru">
+                <span id="ttdPlaceholder" class="hidden">Belum ada TTD</span>
+              @else
+                <img id="ttdPreview"
+                     src=""
+                     class="h-full w-full object-contain hidden"
+                     alt="Tanda tangan guru">
+                <span id="ttdPlaceholder">Belum ada TTD</span>
+              @endif
+            </div>
+
+            <input id="ttd_file"
+                   name="ttd_file"
+                   type="file"
+                   accept=".jpg,.jpeg,.png"
+                   class="block w-full max-w-[300px] text-sm rounded-md p-2 border
+                          {{ $errors->has('ttd_file') ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200' : 'border-gray-300 focus:border-blue-400 focus:ring-blue-300' }}">
+
+            <p class="mt-2 text-xs text-gray-500">
+              Format: JPG/PNG. Maksimal ukuran 2 MB. Kosongkan jika belum tersedia.
+            </p>
+
+            @if($ttdPath)
+              <p class="mt-1 text-xs text-emerald-700">
+                Tanda tangan sudah tersimpan. Upload file baru untuk mengganti.
+              </p>
+            @endif
+
+            <p id="ttd_file_inline_error" class="mt-1 text-sm text-rose-600 hidden"></p>
+            @error('ttd_file') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
           </div>
         </div>
 
@@ -89,8 +136,8 @@
                     class="mt-1 block w-full rounded-md border bg-white
                            {{ $errors->has('jk') ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200' : 'border-gray-300 focus:border-blue-400 focus:ring-blue-300' }}">
               <option value="">-- Pilih --</option>
-              <option value="L" @selected($jkVal==='L')>Laki-laki</option>
-              <option value="P" @selected($jkVal==='P')>Perempuan</option>
+              <option value="L" @selected($jkVal === 'L')>Laki-laki</option>
+              <option value="P" @selected($jkVal === 'P')>Perempuan</option>
             </select>
             <p id="jk_inline_error" class="mt-1 text-sm text-rose-600 hidden"></p>
             @error('jk') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
@@ -167,7 +214,6 @@
       <h2 class="text-lg font-bold text-blue-800">Kepegawaian & Kontak</h2>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
-        {{-- Kolom kiri --}}
         <div class="space-y-5">
           <div>
             <label for="status_kepegawaian" class="block text-sm font-medium text-gray-700">
@@ -178,9 +224,9 @@
                     class="mt-1 block w-full rounded-md border bg-white
                            {{ $errors->has('status_kepegawaian') ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200' : 'border-gray-300 focus:border-blue-400 focus:ring-blue-300' }}">
               <option value="">-- Pilih --</option>
-              <option value="PNS" @selected($sk==='PNS')>PNS</option>
-              <option value="PPPK" @selected($sk==='PPPK')>PPPK</option>
-              <option value="Non-PNS" @selected($sk==='Non-PNS')>Non-PNS</option>
+              <option value="PNS" @selected($sk === 'PNS')>PNS</option>
+              <option value="PPPK" @selected($sk === 'PPPK')>PPPK</option>
+              <option value="Non-PNS" @selected($sk === 'Non-PNS')>Non-PNS</option>
             </select>
             <p id="status_kepegawaian_inline_error" class="mt-1 text-sm text-rose-600 hidden"></p>
             @error('status_kepegawaian') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
@@ -194,15 +240,14 @@
             <select id="status" name="status" required
                     class="mt-1 block w-full rounded-md border bg-white
                            {{ $errors->has('status') ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200' : 'border-gray-300 focus:border-blue-400 focus:ring-blue-300' }}">
-              <option value="aktif" @selected($st==='aktif')>Aktif</option>
-              <option value="nonaktif" @selected($st==='nonaktif')>Non Aktif</option>
+              <option value="aktif" @selected($st === 'aktif')>Aktif</option>
+              <option value="nonaktif" @selected($st === 'nonaktif')>Non Aktif</option>
             </select>
             <p id="status_inline_error" class="mt-1 text-sm text-rose-600 hidden"></p>
             @error('status') <p class="mt-1 text-sm text-rose-600">{{ $message }}</p> @enderror
           </div>
         </div>
 
-        {{-- Kolom tengah --}}
         <div class="space-y-5">
           <div>
             <label for="no_hp" class="block text-sm font-medium text-gray-700">
@@ -234,7 +279,6 @@
           </div>
         </div>
 
-        {{-- Kolom kanan: alamat lebih besar --}}
         <div>
           <label for="alamat" class="block text-sm font-medium text-gray-700">
             Alamat Lengkap <span class="text-rose-600">*</span>
@@ -249,12 +293,12 @@
       </div>
     </section>
 
-    {{-- ===== Tombol Aksi ===== --}}
     <div class="flex items-center gap-3 pt-8">
       <button id="btnSubmit" type="submit"
               class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 transition">
         Simpan
       </button>
+
       <a href="{{ route('admin.guru.index') }}"
          class="px-6 py-2 border border-gray-300 bg-white text-gray-700 rounded-md shadow-sm hover:bg-gray-100 transition">
         Batal
@@ -266,56 +310,14 @@
 
 @push('scripts')
 <script>
-  document.getElementById('foto')?.addEventListener('change', e => {
-    const [file] = e.target.files || [];
-    const preview = document.getElementById('fotoPreview');
-    const placeholder = document.getElementById('fotoPlaceholder');
-    const errorEl = document.getElementById('foto_inline_error');
-
-    if (!file) {
-      errorEl.classList.add('hidden');
-      errorEl.textContent = '';
-      preview.src = '';
-      preview.classList.add('hidden');
-      placeholder.classList.remove('hidden');
-      return;
-    }
-
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    const maxSize = 2 * 1024 * 1024;
-
-    if (!allowedTypes.includes(file.type)) {
-      errorEl.textContent = 'Foto harus berformat JPG, JPEG, PNG, atau WEBP.';
-      errorEl.classList.remove('hidden');
-      e.target.value = '';
-      preview.src = '';
-      preview.classList.add('hidden');
-      placeholder.classList.remove('hidden');
-      return;
-    }
-
-    if (file.size > maxSize) {
-      errorEl.textContent = 'Ukuran foto maksimal 2 MB.';
-      errorEl.classList.remove('hidden');
-      e.target.value = '';
-      preview.src = '';
-      preview.classList.add('hidden');
-      placeholder.classList.remove('hidden');
-      return;
-    }
-
-    errorEl.textContent = '';
-    errorEl.classList.add('hidden');
-    preview.src = URL.createObjectURL(file);
-    preview.classList.remove('hidden');
-    placeholder.classList.add('hidden');
-  });
-
   function setInlineError(input, message) {
+    if (!input) return;
+
     input.classList.remove('border-gray-300', 'focus:border-blue-400', 'focus:ring-blue-300');
     input.classList.add('border-rose-400', 'focus:border-rose-500', 'focus:ring-rose-200');
 
     const errorEl = document.getElementById(input.id + '_inline_error');
+
     if (errorEl) {
       errorEl.textContent = message;
       errorEl.classList.remove('hidden');
@@ -323,18 +325,99 @@
   }
 
   function clearInlineError(input) {
+    if (!input) return;
+
     input.classList.remove('border-rose-400', 'focus:border-rose-500', 'focus:ring-rose-200');
     input.classList.add('border-gray-300', 'focus:border-blue-400', 'focus:ring-blue-300');
 
     const errorEl = document.getElementById(input.id + '_inline_error');
+
     if (errorEl) {
       errorEl.textContent = '';
       errorEl.classList.add('hidden');
     }
   }
 
+  function handleImagePreview(config) {
+    const input = document.getElementById(config.inputId);
+    const preview = document.getElementById(config.previewId);
+    const placeholder = document.getElementById(config.placeholderId);
+    const errorEl = document.getElementById(config.errorId);
+
+    if (!input || !preview || !placeholder || !errorEl) {
+      return;
+    }
+
+    input.addEventListener('change', e => {
+      const [file] = e.target.files || [];
+
+      if (!file) {
+        errorEl.classList.add('hidden');
+        errorEl.textContent = '';
+
+        if (!preview.getAttribute('src')) {
+          preview.src = '';
+          preview.classList.add('hidden');
+          placeholder.classList.remove('hidden');
+        }
+
+        return;
+      }
+
+      const maxSize = 2 * 1024 * 1024;
+
+      if (!config.allowedTypes.includes(file.type)) {
+        errorEl.textContent = config.typeMessage;
+        errorEl.classList.remove('hidden');
+
+        e.target.value = '';
+        preview.src = '';
+        preview.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        return;
+      }
+
+      if (file.size > maxSize) {
+        errorEl.textContent = 'Ukuran file maksimal 2 MB.';
+        errorEl.classList.remove('hidden');
+
+        e.target.value = '';
+        preview.src = '';
+        preview.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        return;
+      }
+
+      errorEl.textContent = '';
+      errorEl.classList.add('hidden');
+
+      preview.src = URL.createObjectURL(file);
+      preview.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+    });
+  }
+
+  handleImagePreview({
+    inputId: 'foto',
+    previewId: 'fotoPreview',
+    placeholderId: 'fotoPlaceholder',
+    errorId: 'foto_inline_error',
+    allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+    typeMessage: 'Foto harus berformat JPG, JPEG, PNG, atau WEBP.'
+  });
+
+  handleImagePreview({
+    inputId: 'ttd_file',
+    previewId: 'ttdPreview',
+    placeholderId: 'ttdPlaceholder',
+    errorId: 'ttd_file_inline_error',
+    allowedTypes: ['image/jpeg', 'image/jpg', 'image/png'],
+    typeMessage: 'Tanda tangan digital harus berformat JPG, JPEG, atau PNG.'
+  });
+
   function onlyDigits(el) {
     if (!el) return;
+
     el.addEventListener('input', () => {
       const oldVal = el.value;
       el.value = (el.value || '').replace(/\D+/g, '');
@@ -364,6 +447,7 @@
           setInlineError(el, 'Nama hanya boleh huruf, spasi, titik, koma, strip, dan apostrof.');
           return false;
         }
+
         if (value.length < 3) {
           setInlineError(el, 'Nama minimal 3 karakter.');
           return false;
@@ -424,6 +508,7 @@
           setInlineError(el, 'Email wajib diisi.');
           return false;
         }
+
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
           setInlineError(el, 'Format email tidak valid.');
           return false;
@@ -490,15 +575,20 @@
 
       if (!valid) {
         e.preventDefault();
+
         const firstError = form.querySelector('.border-rose-400');
-        if (firstError) firstError.focus();
+
+        if (firstError) {
+          firstError.focus();
+        }
+
         return;
       }
 
       btn.disabled = true;
-      btn.classList.add('opacity-70','cursor-not-allowed');
+      btn.classList.add('opacity-70', 'cursor-not-allowed');
       btn.innerText = 'Menyimpan...';
     });
   }
 </script>
-@endpush  
+@endpush

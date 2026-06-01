@@ -16,8 +16,9 @@ class GuruController extends Controller
 
         $items = Guru::query()
             ->when($q, function ($query) use ($q) {
-                $like = '%'.$q.'%';
-                $query->where(function($sub) use ($like) {
+                $like = '%' . $q . '%';
+
+                $query->where(function ($sub) use ($like) {
                     $sub->where('nama', 'like', $like)
                         ->orWhere('nip', 'like', $like)
                         ->orWhere('nuptk', 'like', $like)
@@ -35,6 +36,7 @@ class GuruController extends Controller
     public function create()
     {
         $guru = new Guru();
+
         return view('admin.guru.create', compact('guru'));
     }
 
@@ -42,10 +44,22 @@ class GuruController extends Controller
     {
         $data = $this->validated($request, null);
 
-        // simpan file foto (wajib di create)
+        /*
+         * Kolom nip pada database kamu bertipe NOT NULL.
+         * Jadi kalau admin mengosongkan NIP untuk Non-PNS, sistem simpan string kosong,
+         * bukan NULL, supaya tidak error di database.
+         */
+        $data['nip'] = $data['nip'] ?? '';
+
         if ($request->hasFile('foto')) {
             $data['foto'] = $request->file('foto')->store('foto_guru', 'public');
         }
+
+        if ($request->hasFile('ttd_file')) {
+            $data['ttd_path'] = $request->file('ttd_file')->store('ttd-guru', 'public');
+        }
+
+        unset($data['ttd_file']);
 
         Guru::create($data);
 
@@ -63,16 +77,27 @@ class GuruController extends Controller
     {
         $data = $this->validated($request, $guru->id);
 
-        // jika upload foto baru
+        $data['nip'] = $data['nip'] ?? '';
+
         if ($request->hasFile('foto')) {
-            if ($guru->foto) {
+            if ($guru->foto && Storage::disk('public')->exists($guru->foto)) {
                 Storage::disk('public')->delete($guru->foto);
             }
+
             $data['foto'] = $request->file('foto')->store('foto_guru', 'public');
         } else {
-            // jangan menimpa kolom foto jika user tidak mengganti
             unset($data['foto']);
         }
+
+        if ($request->hasFile('ttd_file')) {
+            if ($guru->ttd_path && Storage::disk('public')->exists($guru->ttd_path)) {
+                Storage::disk('public')->delete($guru->ttd_path);
+            }
+
+            $data['ttd_path'] = $request->file('ttd_file')->store('ttd-guru', 'public');
+        }
+
+        unset($data['ttd_file']);
 
         $guru->update($data);
 
@@ -83,13 +108,19 @@ class GuruController extends Controller
 
     public function destroy(Guru $guru)
     {
-        // hapus foto kalau ada
-        if ($guru->foto) {
+        if ($guru->foto && Storage::disk('public')->exists($guru->foto)) {
             Storage::disk('public')->delete($guru->foto);
         }
 
+        if ($guru->ttd_path && Storage::disk('public')->exists($guru->ttd_path)) {
+            Storage::disk('public')->delete($guru->ttd_path);
+        }
+
         $guru->delete();
-        return redirect()->route('admin.guru.index')->with('success','Data guru berhasil dihapus.');
+
+        return redirect()
+            ->route('admin.guru.index')
+            ->with('success', 'Data guru berhasil dihapus.');
     }
 
     public function show(Guru $guru)
@@ -97,76 +128,79 @@ class GuruController extends Controller
         return view('admin.guru.show', compact('guru'));
     }
 
-    /**
-     * Validasi terpusat untuk store/update.
-     * - Semua wajib diisi
-     * - Nama & tempat lahir: huruf
-     * - NIP/NUPTK/No HP: angka
-     * - Foto: wajib saat create, optional saat update
-     */
     private function validated(Request $request, ?int $ignoreId = null): array
-{
-    // regex huruf + spasi + beberapa tanda yang wajar
-    $regexNama = "/^[A-Za-zÀ-ÿ\s\.\'\-,]+$/u";
+    {
+        $regexNama = "/^[A-Za-zÀ-ÿ\s\.\'\-,]+$/u";
 
-    return $request->validate([
-        'nama' => [
-            'required',
-            'string',
-            'max:255',
-            "regex:$regexNama",
-        ],
-        'jk' => ['required', Rule::in(['L','P'])],
+        return $request->validate([
+            'nama' => [
+                'required',
+                'string',
+                'max:255',
+                "regex:$regexNama",
+            ],
 
-        // ✅ NIP boleh kosong (untuk Non-PNS), tapi kalau diisi harus angka
-        'nip' => ['nullable', 'digits_between:8,25'],
+            'jk' => ['required', Rule::in(['L', 'P'])],
 
-        // ✅ NUPTK wajib & angka
-        'nuptk' => ['required', 'digits_between:8,25'],
+            'nip' => ['nullable', 'digits_between:8,25'],
 
-        'tempat_lahir' => [
-            'required',
-            'string',
-            'max:100',
-            "regex:$regexNama",
-        ],
-        'tanggal_lahir' => ['required', 'date'],
+            'nuptk' => ['required', 'digits_between:8,25'],
 
-        'status_kepegawaian' => ['required', Rule::in(['PNS','PPPK','Non-PNS'])],
+            'tempat_lahir' => [
+                'required',
+                'string',
+                'max:100',
+                "regex:$regexNama",
+            ],
 
-        'no_hp' => ['required', 'digits_between:10,15'],
+            'tanggal_lahir' => ['required', 'date'],
 
-        'email' => [
-            'required',
-            'email:rfc,dns',
-            'max:150',
-            Rule::unique('guru','email')->ignore($ignoreId),
-        ],
+            'status_kepegawaian' => ['required', Rule::in(['PNS', 'PPPK', 'Non-PNS'])],
 
-        'status' => ['required', Rule::in(['aktif','nonaktif'])],
+            'no_hp' => ['required', 'digits_between:10,15'],
 
-        'alamat' => ['required', 'string', 'min:5'],
+            'email' => [
+                'required',
+                'email:rfc,dns',
+                'max:150',
+                Rule::unique('guru', 'email')->ignore($ignoreId),
+            ],
 
-        'foto' => array_filter([
-            $ignoreId ? 'nullable' : 'required',
-            'image',
-            'mimes:jpg,jpeg,png,webp',
-            'max:2048',
-        ]),
-    ], [], [
-        'nama' => 'nama lengkap',
-        'jk' => 'jenis kelamin',
-        'nip' => 'NIP',
-        'nuptk' => 'NUPTK',
-        'tempat_lahir' => 'tempat lahir',
-        'tanggal_lahir' => 'tanggal lahir',
-        'status_kepegawaian' => 'status kepegawaian',
-        'no_hp' => 'no. HP',
-        'email' => 'email',
-        'status' => 'status',
-        'alamat' => 'alamat',
-        'foto' => 'foto',
-    ]);
-}
+            'status' => ['required', Rule::in(['aktif', 'nonaktif'])],
 
+            'alamat' => ['required', 'string', 'min:5'],
+
+            'foto' => array_filter([
+                $ignoreId ? 'nullable' : 'required',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:2048',
+            ]),
+
+            'ttd_file' => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png',
+                'max:2048',
+            ],
+        ], [
+            'ttd_file.image' => 'Tanda tangan digital harus berupa file gambar.',
+            'ttd_file.mimes' => 'Tanda tangan digital harus berformat JPG, JPEG, atau PNG.',
+            'ttd_file.max' => 'Ukuran tanda tangan digital maksimal 2 MB.',
+        ], [
+            'nama' => 'nama lengkap',
+            'jk' => 'jenis kelamin',
+            'nip' => 'NIP',
+            'nuptk' => 'NUPTK',
+            'tempat_lahir' => 'tempat lahir',
+            'tanggal_lahir' => 'tanggal lahir',
+            'status_kepegawaian' => 'status kepegawaian',
+            'no_hp' => 'no. HP',
+            'email' => 'email',
+            'status' => 'status',
+            'alamat' => 'alamat',
+            'foto' => 'foto',
+            'ttd_file' => 'tanda tangan digital',
+        ]);
+    }
 }

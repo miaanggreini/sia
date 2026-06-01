@@ -21,6 +21,7 @@ class Guru extends Model
         'no_hp',
         'email',
         'foto',
+        'ttd_path',
         'status',
         'alamat',
     ];
@@ -71,5 +72,14 @@ class Guru extends Model
         }
 
         return asset('images/no-photo.png');
+    }
+
+    public function getTtdUrlAttribute(): ?string
+    {
+        if ($this->ttd_path && Storage::disk('public')->exists($this->ttd_path)) {
+            return asset('storage/' . $this->ttd_path);
+        }
+
+        return null;
     }
 }
