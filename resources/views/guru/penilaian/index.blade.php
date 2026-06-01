@@ -288,4 +288,52 @@
       }
     });
   </script>
+
+  @if(session('excel_bobot_config'))
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const config = @json(session('excel_bobot_config'));
+
+        if (!config || !config.bobot) {
+            return;
+        }
+
+        const tahunAjaranId = config.tahun_ajaran_id;
+        const semester = config.semester;
+        const jadwalId = config.jadwal_id;
+
+        Object.keys(config.bobot).forEach(function (lm) {
+            const item = config.bobot[lm];
+
+            const storageKey = [
+                'bobot_penilaian',
+                jadwalId,
+                tahunAjaranId,
+                semester,
+                lm
+            ].join('_');
+
+            const storageValue = {
+                jadwal_id: jadwalId,
+                tahun_ajaran_id: tahunAjaranId,
+                semester: semester,
+                komponen: lm,
+
+                jenis_tp1: item.jenis_tp1 || 'praktik',
+                jenis_tp2: item.jenis_tp2 || 'praktik',
+                jenis_tp3: item.jenis_tp3 || 'teori',
+                jenis_tp4: item.jenis_tp4 || 'teori',
+
+                bobot_praktik: item.bobot_praktik ?? '',
+                bobot_teori: item.bobot_teori ?? '',
+                saved_at: new Date().toISOString()
+            };
+
+            localStorage.setItem(storageKey, JSON.stringify(storageValue));
+        });
+
+        console.log('Bobot penilaian dari Excel berhasil disimpan ke localStorage:', config.bobot);
+    });
+</script>
+@endif
 @endsection

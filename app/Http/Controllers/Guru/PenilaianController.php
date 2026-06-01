@@ -727,6 +727,8 @@ public function importExcel(Request $request)
         'LM4' => 'lm4',
     ];
 
+    $bobotUntukLocalStorage = [];
+
     $jumlahImport = 0;
 
     DB::beginTransaction();
@@ -758,6 +760,15 @@ public function importExcel(Request $request)
             if (abs(($bobotPraktik + $bobotTeori) - 100) > 0.01) {
                 throw new \Exception("Sheet {$lm}: total bobot praktik dan teori harus 100%.");
             }
+
+            $bobotUntukLocalStorage[$lm] = [
+                'jenis_tp1'      => $jenisTp['tp1'] ?? 'praktik',
+                'jenis_tp2'      => $jenisTp['tp2'] ?? 'praktik',
+                'jenis_tp3'      => $jenisTp['tp3'] ?? 'teori',
+                'jenis_tp4'      => $jenisTp['tp4'] ?? 'teori',
+                'bobot_praktik'  => $bobotPraktik,
+                'bobot_teori'    => $bobotTeori,
+            ];
 
             $highestRow = $sheet->getHighestRow();
 
@@ -869,9 +880,17 @@ public function importExcel(Request $request)
         ]);
     }
 
-    return redirect()
-        ->route('guru.penilaian.index')
-        ->with('success', "Import Excel berhasil. {$jumlahImport} data nilai diperbarui dari LM1 sampai LM4.");
+return redirect()
+    ->route('guru.penilaian.index')
+    ->with('success', "Import Excel berhasil. {$jumlahImport} data nilai diperbarui dari LM1 sampai LM4.")
+    ->with('excel_bobot_config', [
+        'tahun_ajaran_id'      => (int) $taAktif->id,
+        'semester'             => $taAktif->semester,
+        'jadwal_id'            => (int) $jadwal->id,
+        'rombel_id'            => (int) $jadwal->rombel_id,
+        'mata_pelajaran_id'    => (int) $jadwal->mata_pelajaran_id,
+        'bobot'                => $bobotUntukLocalStorage,
+    ]);
 }
 
     public function finalize(Request $request)
